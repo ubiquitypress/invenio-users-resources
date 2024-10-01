@@ -15,6 +15,8 @@ from flask_resources import resource_requestctx, response_handler, route
 from flask_security import impersonate_user
 from invenio_records_resources.resources import RecordResource
 from invenio_records_resources.resources.records.resource import (
+    request_data,
+    request_extra_args,
     request_search_args,
     request_view_args,
 )
@@ -44,6 +46,7 @@ class UsersResource(RecordResource):
             route("POST", routes["deactivate"], self.deactivate),
             route("POST", routes["activate"], self.activate),
             route("POST", routes["impersonate"], self.impersonate),
+            route("POST", routes["create-via-admin"], self.create_via_admin),
             route("GET", routes["search_all"], self.search_all),
         ]
 
@@ -152,3 +155,15 @@ class UsersResource(RecordResource):
         if user:
             impersonate_user(user, g.identity)
         return "", 200
+
+    @request_extra_args
+    @request_data
+    @response_handler()
+    def create_via_admin(self):
+        """Create an item."""
+        item = self.service.create_via_admin(
+            g.identity,
+            resource_requestctx.data or {},
+        )
+        print("create_via_admin after service")
+        return item.to_dict(), 201

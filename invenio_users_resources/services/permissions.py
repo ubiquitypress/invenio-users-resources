@@ -32,7 +32,7 @@ UserManager = AdminAction(user_management_action)
 class UsersPermissionPolicy(BasePermissionPolicy):
     """Permission policy for users and user groups."""
 
-    can_create = [SystemProcess()]
+    can_create = [UserManager, SystemProcess()]
     can_read = [
         UserManager,
         IfPublicUser(then_=[AnyUser()], else_=[Self()]),

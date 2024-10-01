@@ -10,9 +10,13 @@
 # details.
 
 """Users service."""
+import random
+import string
 
+from flask_security.utils import hash_password
 from invenio_accounts.models import User
-from invenio_db import db
+from invenio_accounts.proxies import current_datastore
+from invenio_accounts.utils import default_reset_password_link_func
 from invenio_records_resources.resources.errors import PermissionDeniedError
 from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_of_work
@@ -20,7 +24,10 @@ from invenio_search.engine import dsl
 from marshmallow import ValidationError
 
 from invenio_users_resources.services.results import AvatarResult
-from invenio_users_resources.services.users.tasks import execute_moderation_actions
+from invenio_users_resources.services.users.tasks import (
+    execute_moderation_actions,
+    execute_reset_password_email,
+)
 
 from ...records.api import UserAggregate
 from .lock import ModerationMutex
@@ -33,6 +40,77 @@ class UsersService(RecordService):
     def user_cls(self):
         """Alias for record_cls."""
         return self.record_cls
+
+    @unit_of_work()
+    def create_via_admin(self, identity, data, raise_errors=True, uow=None):
+        """Create a user."""
+        self.require_permission(identity, "create")
+        # Remove the following from data dict as will fail schema validation.
+        for key in [
+            "id",
+            "domain",
+            "preferences",
+            "profile",
+            "identities",
+            "domaininfo",
+        ]:
+            if key in data:
+                data.pop(key)
+        data, errors = self.schema.load(
+            data,
+            context={"identity": identity},
+            raise_errors=raise_errors,
+        )
+        # create flask user
+        user, errors = self._create_user_as_admin(data)
+        # run components
+        self.run_components(
+            "create",
+            identity,
+            data=data,
+            user=user,
+            errors=errors,
+            uow=uow,
+        )
+        # get email token and reset info
+        account_user = current_datastore.get_user(user.id)
+        token, reset_link = default_reset_password_link_func(account_user)
+        # trigger celery task to send email.
+        uow.register(
+            TaskOp(
+                execute_reset_password_email,
+                user_id=user.id,
+                token=token,
+                reset_link=reset_link,
+            )
+        )
+        return self.result_item(
+            self, identity, user, links_tpl=self.links_item_tpl, errors=errors
+        )
+
+    def _create_user_as_admin(
+        self,
+        user_info: dict,
+    ):
+        """Create a new user with auto-generated password."""
+        # Generate password and add to user_info dict
+        generated_password = "".join(
+            random.choices(string.ascii_letters + string.digits, k=12)
+        )
+        user_info["password"] = generated_password
+        # Construct User Data and create and active user
+        try:
+            user_info["password"] = hash_password(generated_password)
+            account_user = current_datastore.create_user(**user_info)
+            current_datastore.commit()  # Commit to save the user to the database
+            # Activate and verify user
+            user = UserAggregate.get_record(account_user.id)
+            # Now active and verify email automatically
+            user.activate()
+            user.verify()
+            return user, None
+        except Exception as e:
+            return None, [str(e)]
 
     @unit_of_work()
     def create(self, identity, data, raise_errors=True, uow=None):

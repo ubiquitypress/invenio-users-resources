@@ -176,6 +176,30 @@ def test_search_permissions(app, db, user_service, user_moderator, user_res):
     assert search.total > 0
 
 
+#
+# CREATE
+#
+def test_create(
+    app, db, user_service, user_moderator, user_res, clear_cache, search_clear
+):
+    """Test user create."""
+
+    with pytest.raises(PermissionDeniedError):
+        user_service.create_via_admin(user_res.identity, user_res.id)
+    data = {
+        "username": "newuser",
+        "email": "newuser@inveniosoftware.org",
+    }
+
+    res = user_service.create_via_admin(user_moderator.identity, data).to_dict()
+
+    ur = user_service.read(user_moderator.identity, res["id"])
+    # Make sure new user is active and verified
+    assert ur.data["username"] == "newuser"
+    assert ur.data["active"] == True
+    assert ur.data["verified"] == True
+
+
 def test_block(
     app, db, user_service, user_moderator, user_res, clear_cache, search_clear
 ):

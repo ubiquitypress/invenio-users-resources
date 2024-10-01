@@ -115,6 +115,23 @@ def test_user_avatar(client, user_pub):
 #
 # Management / moderation
 #
+def test_create_user_via_admin(client, headers, user_moderator, db):
+    """Tests approve user endpoint."""
+    client = user_moderator.login(client)
+    res = client.post(
+        "/users/create-via-admin",
+        json={
+            "username": "newuser",
+            "email": "newuser@inveniosoftware.org",
+        },
+        headers=headers,
+    )
+    assert res.status_code == 201
+
+    res = client.get(f"/users/{res.json['id']}")
+    assert res.status_code == 200
+    assert res.json["active"] == True
+    assert res.json["email"] == "newuser@inveniosoftware.org"
 
 
 def test_approve_user(client, headers, user_pub, user_moderator, db):
