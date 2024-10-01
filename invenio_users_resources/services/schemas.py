@@ -100,11 +100,11 @@ class UserSchema(BaseRecordSchema, FieldPermissionsMixin):
     visibility = fields.Str(dump_only=True)
     is_current_user = fields.Method("is_self", dump_only=True)
 
-    email = fields.String()
+    email = fields.Email()
     domain = fields.String()
     domaininfo = fields.Nested(DomainInfoSchema)
     identities = fields.Nested(IdentitiesSchema, default={})
-    username = fields.String()
+    username = fields.String(validate=validate.Length(min=3, max=20))
     profile = fields.Dict()
     preferences = fields.Nested(UserPreferencesSchema)
 
