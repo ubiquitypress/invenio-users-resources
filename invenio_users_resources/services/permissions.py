@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2022 TU Wien.
 # Copyright (C) 2024 KTH Royal Institute of Technology.
+# Copyright (C) 2024 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -34,7 +35,7 @@ UserManager = AdminAction(user_management_action)
 class UsersPermissionPolicy(BasePermissionPolicy):
     """Permission policy for users and user groups."""
 
-    can_create = [SystemProcess()]
+    can_create = [UserManager, SystemProcess()]
     can_read = [
         UserManager,
         IfPublicUser(then_=[AnyUser()], else_=[Self()]),
