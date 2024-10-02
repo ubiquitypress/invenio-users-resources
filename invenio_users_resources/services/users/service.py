@@ -22,6 +22,7 @@ from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_of_work
 from invenio_search.engine import dsl
 from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from invenio_users_resources.services.results import AvatarResult
 from invenio_users_resources.services.users.tasks import (
@@ -97,15 +98,12 @@ class UsersService(RecordService):
         generated_password = "".join(
             random.choices(string.ascii_letters + string.digits, k=12)
         )
-        user_info["password"] = generated_password
-        # Construct User Data and create and active user
+        user_info["password"] = hash_password(generated_password)
+
+        # create the user with the specified data
+        user = self.user_cls.create_via_admin(user_info)
         try:
-            user_info["password"] = hash_password(generated_password)
-            account_user = current_datastore.create_user(**user_info)
-            current_datastore.commit()  # Commit to save the user to the database
             # Activate and verify user
-            user = UserAggregate.get_record(account_user.id)
-            # Now active and verify email automatically
             user.activate()
             user.verify()
             return user, None

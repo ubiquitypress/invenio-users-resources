@@ -8,6 +8,7 @@
 # details.
 
 """User and user group schemas."""
+import re
 
 from flask import current_app
 from invenio_access.permissions import system_user_id
@@ -68,6 +69,21 @@ class UserProfileSchema(Schema):
     affiliations = fields.String()
 
 
+def validate_username(value):
+    """Validate UserSchema.username"""
+    # Check if the string starts with a letter
+    if not re.match(r"^[A-Za-z]", value):
+        raise ValidationError("Must start with a letter.")
+    
+    # Check if the string is at least three characters long
+    if len(value) < 3:
+        raise ValidationError("Must be at least three characters long.")
+    
+    # Check if the string only contains alphanumeric characters, dashes, and underscores
+    if not re.match(r"^[A-Za-z0-9-_]+$", value):
+        raise ValidationError("Must only contain alphanumeric characters, dashes, and underscores.")
+
+
 class UserSchema(BaseRecordSchema, FieldPermissionsMixin):
     """Schema for users."""
 
@@ -104,7 +120,7 @@ class UserSchema(BaseRecordSchema, FieldPermissionsMixin):
     domain = fields.String()
     domaininfo = fields.Nested(DomainInfoSchema)
     identities = fields.Nested(IdentitiesSchema, default={})
-    username = fields.String(validate=validate.Length(min=3, max=20))
+    username = fields.String(validate=validate_username)
     profile = fields.Dict()
     preferences = fields.Nested(UserPreferencesSchema)
 

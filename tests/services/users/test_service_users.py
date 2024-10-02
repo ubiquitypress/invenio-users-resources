@@ -10,6 +10,7 @@
 
 import time
 
+from marshmallow import ValidationError
 import pytest
 from invenio_access.permissions import system_identity
 from invenio_cache.lock import CachedMutex
@@ -183,13 +184,13 @@ def test_create(
     app, db, user_service, user_moderator, user_res, clear_cache, search_clear
 ):
     """Test user create."""
-
-    with pytest.raises(PermissionDeniedError):
-        user_service.create_via_admin(user_res.identity, user_res.id)
     data = {
         "username": "newuser",
         "email": "newuser@inveniosoftware.org",
     }
+
+    with pytest.raises(PermissionDeniedError):
+        user_service.create_via_admin(user_res.identity, data)
 
     res = user_service.create_via_admin(user_moderator.identity, data).to_dict()
 
@@ -198,6 +199,57 @@ def test_create(
     assert ur.data["username"] == "newuser"
     assert ur.data["active"] == True
     assert ur.data["verified"] == True
+
+    # Invalid as no username of email
+    with pytest.raises(ValidationError) as exc_info:
+        user_service.create_via_admin(
+            user_moderator.identity,
+            {
+                "username": None,
+                "email": None,
+            }
+        )
+    assert exc_info.value.messages == {'email': ['Field may not be null.'], 'username': ['Field may not be null.']}
+
+    # Invalid values for both username and email
+    with pytest.raises(ValidationError) as exc_info:
+        user_service.create_via_admin(
+            user_moderator.identity,
+            {
+                "username": "aa",
+                "email": "invalid",
+            }
+        )
+    assert exc_info.value.messages == {'email': ['Not a valid email address.'], 'username': ['Must be at least three characters long.']}
+
+    # Invalid values for username not starting with alpha
+    with pytest.raises(ValidationError) as exc_info:
+        user_service.create_via_admin(
+            user_moderator.identity,
+            {
+                "username": "_aaa",
+                "email": "valid@up.com",
+            }
+        )
+    assert exc_info.value.messages == {'username': ['Must start with a letter.']}
+
+    # Invalid values for username with non alpha, dash or underscore
+    with pytest.raises(ValidationError) as exc_info:
+        user_service.create_via_admin(
+            user_moderator.identity,
+            {
+                "username": "aaaa_1-:",
+                "email": "valid@up.com",
+            }
+        )
+    assert exc_info.value.messages == {'username': ['Must only contain alphanumeric characters, dashes, and underscores.']}
+
+    # Cannot re-add same details for new user
+    with pytest.raises(ValidationError) as exc_info:
+        user_service.create_via_admin(
+            user_moderator.identity,
+            data
+        )
 
 
 def test_block(
