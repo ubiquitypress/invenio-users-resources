@@ -115,11 +115,11 @@ def test_user_avatar(client, user_pub):
 #
 # Management / moderation
 #
-def test_create_user_via_admin(client, headers, user_moderator, db):
+def test_create_user(client, headers, user_moderator, db):
     """Tests approve user endpoint."""
     client = user_moderator.login(client)
     res = client.post(
-        "/users/create-via-admin",
+        "/users",
         json={
             "username": "newuser",
             "email": "newuser@inveniosoftware.org",

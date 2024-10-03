@@ -190,9 +190,9 @@ def test_create(
     }
 
     with pytest.raises(PermissionDeniedError):
-        user_service.create_via_admin(user_res.identity, data)
+        user_service.create(user_res.identity, data)
 
-    res = user_service.create_via_admin(user_moderator.identity, data).to_dict()
+    res = user_service.create(user_moderator.identity, data).to_dict()
 
     ur = user_service.read(user_moderator.identity, res["id"])
     # Make sure new user is active and verified
@@ -202,7 +202,7 @@ def test_create(
 
     # Invalid as no username of email
     with pytest.raises(ValidationError) as exc_info:
-        user_service.create_via_admin(
+        user_service.create(
             user_moderator.identity,
             {
                 "username": None,
@@ -216,7 +216,7 @@ def test_create(
 
     # Invalid values for both username and email
     with pytest.raises(ValidationError) as exc_info:
-        user_service.create_via_admin(
+        user_service.create(
             user_moderator.identity,
             {
                 "username": "aa",
@@ -230,7 +230,7 @@ def test_create(
 
     # Invalid values for username not starting with alpha
     with pytest.raises(ValidationError) as exc_info:
-        user_service.create_via_admin(
+        user_service.create(
             user_moderator.identity,
             {
                 "username": "_aaa",
@@ -241,7 +241,7 @@ def test_create(
 
     # Invalid values for username with non alpha, dash or underscore
     with pytest.raises(ValidationError) as exc_info:
-        user_service.create_via_admin(
+        user_service.create(
             user_moderator.identity,
             {
                 "username": "aaaa_1-:",
@@ -256,7 +256,12 @@ def test_create(
 
     # Cannot re-add same details for new user
     with pytest.raises(ValidationError) as exc_info:
-        user_service.create_via_admin(user_moderator.identity, data)
+        user_service.create(user_moderator.identity, data)
+
+    assert exc_info.value.messages == {
+        "username": ["Username already used by another account."],
+        "email": ["Email already used by another account."],
+    }
 
 
 def test_block(

@@ -23,7 +23,6 @@ from invenio_records.systemfields import ModelField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
 from marshmallow import ValidationError
-from sqlalchemy import event
 from sqlalchemy.exc import NoResultFound
 
 from .dumpers import EmailFieldDumperExt
@@ -214,29 +213,27 @@ class UserAggregate(BaseAggregate):
         return colors[self.id % len(colors)]
 
     @classmethod
-    def create_via_admin(
-        cls, data, id_=None, validator=None, format_checker=None, **kwargs
-    ):
+    def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
         """Create a new User and store it in the database."""
         try:
+            # Check if email and  username already exists by another account.
+            errors = {}
+            existing_email = User.query.filter_by(email=data["email"]).first()
+            if existing_email:
+                errors["email"] = ["Email already used by another account."]
+            existing_username = User.query.filter_by(username=data["username"]).first()
+            if existing_username:
+                errors["username"] = ["Username already used by another account."]
+            if errors:
+                raise ValidationError(errors)
+            # Create User
             account_user = current_datastore.create_user(**data)
             current_datastore.commit()  # Commit to save the user to the database
             return cls.from_model(account_user)
-        except UniqueConstraintViolation as e:
-            raise ValidationError(message=e.message, field_name=e.field, data=data)
+        except ValidationError:
+            raise
         except Exception as e:
             raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
-
-    @classmethod
-    def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
-        """Create a new User and store it in the database."""
-        # NOTE: we don't use an actual database table, and as such can't
-        #       use db.session.add(record.model)
-        with db.session.begin_nested():
-            # create_user() will already take care of creating the profile
-            # for us, if it's specified in the data
-            user = current_datastore.create_user(**data)
-            return cls.from_model(user)
 
     def verify(self):
         """Activates the current user.
@@ -454,33 +451,3 @@ class DomainAggregate(BaseAggregate):
     def delete(self, force=True):
         """Delete the domain."""
         db.session.delete(self.model.model_obj)
-
-
-class UniqueConstraintViolation(Exception):
-    """Unique constraint violation error."""
-
-    def __init__(self, field, message):
-        """Initializing error."""
-        self.field = field
-        self.message = message
-        super().__init__(self.message)
-
-
-@event.listens_for(db.session, "before_flush")
-def check_unique_constraints(session, flush_context, instances):
-    """Sqlalchemy event for checking user unique contraints."""
-    # Loop through all the objects being added to the session
-    for instance in session.new:
-        if isinstance(instance, User):
-            # Check if email already exists
-            existing_email = User.query.filter_by(email=instance.email).first()
-            if existing_email:
-                raise UniqueConstraintViolation(
-                    field="email", message="Email already exists"
-                )
-            # Check if username already exists
-            existing_username = User.query.filter_by(username=instance.username).first()
-            if existing_username:
-                raise UniqueConstraintViolation(
-                    field="username", message="Username already exists"
-                )

@@ -22,7 +22,6 @@ from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_of_work
 from invenio_search.engine import dsl
 from marshmallow import ValidationError
-from sqlalchemy.exc import IntegrityError
 
 from invenio_users_resources.services.results import AvatarResult
 from invenio_users_resources.services.users.tasks import (
@@ -43,8 +42,8 @@ class UsersService(RecordService):
         return self.record_cls
 
     @unit_of_work()
-    def create_via_admin(self, identity, data, raise_errors=True, uow=None):
-        """Create a user."""
+    def create(self, identity, data, raise_errors=True, uow=None):
+        """Create a user from users admin."""
         self.require_permission(identity, "create")
         # Remove the following from data dict as will fail schema validation.
         for key in [
@@ -57,12 +56,13 @@ class UsersService(RecordService):
         ]:
             if key in data:
                 data.pop(key)
+        # validate new user data
         data, errors = self.schema.load(
             data,
             context={"identity": identity},
             raise_errors=raise_errors,
         )
-        # create flask user
+        # create user
         user, errors = self._create_user_as_admin(data)
         # run components
         self.run_components(
@@ -100,46 +100,12 @@ class UsersService(RecordService):
         )
         user_info["password"] = hash_password(generated_password)
 
-        # create the user with the specified data
-        user = self.user_cls.create_via_admin(user_info)
-        try:
-            # Activate and verify user
-            user.activate()
-            user.verify()
-            return user, None
-        except Exception as e:
-            return None, [str(e)]
-
-    @unit_of_work()
-    def create(self, identity, data, raise_errors=True, uow=None):
-        """Create a user."""
-        self.require_permission(identity, "create")
-
-        # validate data
-        data, errors = self.schema.load(
-            data,
-            context={"identity": identity},
-        )
-
-        # create the user with the specified data
-        user = self.user_cls.create(data)
-
-        # run components
-        self.run_components(
-            "create",
-            identity,
-            data=data,
-            user=user,
-            errors=errors,
-            uow=uow,
-        )
-
-        # persist user to DB (indexing is done in the session hooks, see ext)
-        uow.register(RecordCommitOp(user))
-
-        return self.result_item(
-            self, identity, user, links_tpl=self.links_item_tpl, errors=errors
-        )
+        # Create the user with the specified data
+        user = self.user_cls.create(user_info)
+        # Activate and verify user
+        user.activate()
+        user.verify()
+        return user, None
 
     def search(self, identity, params=None, search_preference=None, **kwargs):
         """Search for active and confirmed users, matching the querystring."""
