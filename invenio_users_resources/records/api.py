@@ -214,9 +214,11 @@ class UserAggregate(BaseAggregate):
         return colors[self.id % len(colors)]
 
     @classmethod
-    def create_via_admin(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
+    def create_via_admin(
+        cls, data, id_=None, validator=None, format_checker=None, **kwargs
+    ):
         """Create a new User and store it in the database."""
-        try: 
+        try:
             account_user = current_datastore.create_user(**data)
             current_datastore.commit()  # Commit to save the user to the database
             return cls.from_model(account_user)
@@ -455,23 +457,30 @@ class DomainAggregate(BaseAggregate):
 
 
 class UniqueConstraintViolation(Exception):
+    """Unique constraint violation error."""
+
     def __init__(self, field, message):
+        """Initializing error."""
         self.field = field
         self.message = message
         super().__init__(self.message)
 
 
-@event.listens_for(db.session, 'before_flush')
+@event.listens_for(db.session, "before_flush")
 def check_unique_constraints(session, flush_context, instances):
+    """Sqlalchemy event for checking user unique contraints."""
     # Loop through all the objects being added to the session
     for instance in session.new:
         if isinstance(instance, User):
             # Check if email already exists
             existing_email = User.query.filter_by(email=instance.email).first()
             if existing_email:
-                raise UniqueConstraintViolation(field="email", message="Email already exists")
-            
+                raise UniqueConstraintViolation(
+                    field="email", message="Email already exists"
+                )
             # Check if username already exists
             existing_username = User.query.filter_by(username=instance.username).first()
             if existing_username:
-                raise UniqueConstraintViolation(field="username", message="Username already exists")
+                raise UniqueConstraintViolation(
+                    field="username", message="Username already exists"
+                )
