@@ -11,6 +11,7 @@
 
 """Users service."""
 import random
+import secrets
 import string
 
 from flask_security.utils import hash_password
@@ -89,16 +90,18 @@ class UsersService(RecordService):
             self, identity, user, links_tpl=self.links_item_tpl, errors=errors
         )
 
+    def _generate_password(self, length=12):
+        """Generate password of a specific length."""
+        alphabet = string.ascii_letters + string.digits
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
     def _create_user_as_admin(
         self,
         user_info: dict,
     ):
-        """Create a new user with auto-generated password."""
+        """Create a new active and verified user with auto-generated password."""
         # Generate password and add to user_info dict
-        generated_password = "".join(
-            random.choices(string.ascii_letters + string.digits, k=12)
-        )
-        user_info["password"] = hash_password(generated_password)
+        user_info["password"] = hash_password(self._generate_password())
 
         # Create the user with the specified data
         user = self.user_cls.create(user_info)
