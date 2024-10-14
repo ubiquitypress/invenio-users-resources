@@ -286,3 +286,27 @@ class UsersService(RecordService):
             raise PermissionDeniedError()
         self.require_permission(identity, "impersonate", record=user)
         return user.model.model_obj
+
+    @unit_of_work()
+    def add_role(self, identity, id_, role_name, uow=None):
+        """Add role to user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "manage", record=user)
+        user.add_role(role_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
+        return True
+    
+    @unit_of_work()
+    def remove_role(self, identity, id_, role_name, uow=None):
+        """Remove role from user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "manage", record=user)
+        user.remove_role(role_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
+        return True
