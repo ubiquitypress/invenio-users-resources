@@ -48,6 +48,8 @@ class UsersResource(RecordResource):
             route("POST", routes["deactivate"], self.deactivate),
             route("POST", routes["activate"], self.activate),
             route("POST", routes["impersonate"], self.impersonate),
+            route("PUT", routes["manage-role"], self.add_role),
+            route("DELETE", routes["manage-role"], self.remove_role),
             route("GET", routes["search_all"], self.search_all),
         ]
 
@@ -157,6 +159,7 @@ class UsersResource(RecordResource):
             impersonate_user(user, g.identity)
         return "", 200
 
+<<<<<<< HEAD
     @request_extra_args
     @request_data
     @response_handler()
@@ -167,3 +170,24 @@ class UsersResource(RecordResource):
             resource_requestctx.data or {},
         )
         return item.to_dict(), 201
+=======
+    @request_view_args
+    def add_role(self):
+        """Add Admin roles to user."""
+        self.service.add_admin_roles(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            role_name=resource_requestctx.view_args["role"],
+        )
+        return "", 200
+    
+    @request_view_args
+    def remove_role(self):
+        """Remove Admin roles to user."""
+        self.service.remove_role(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            role_name=resource_requestctx.view_args["role"],
+        )
+        return "", 200
+>>>>>>> 9dc8b67 (REPO-2500: Add user-role add and remove api endpoints)
