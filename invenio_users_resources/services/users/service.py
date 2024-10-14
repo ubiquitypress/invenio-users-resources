@@ -303,7 +303,7 @@ class UsersService(RecordService):
         user.add_role(role_name)
         uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
-    
+
     @unit_of_work()
     def remove_role(self, identity, id_, role_name, uow=None):
         """Remove role from user."""
