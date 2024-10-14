@@ -26,17 +26,18 @@ from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_
 from invenio_search.engine import dsl
 from marshmallow import ValidationError
 
+from invenio_users_resources.permissions import SuperUserMixin
 from invenio_users_resources.services.results import AvatarResult
 from invenio_users_resources.services.users.tasks import (
     execute_moderation_actions,
     execute_reset_password_email,
 )
 
-from ...records.api import UserAggregate
+from ...records.api import GroupAggregate, UserAggregate
 from .lock import ModerationMutex
 
 
-class UsersService(RecordService):
+class UsersService(SuperUserMixin, RecordService):
     """Users service."""
 
     @property
@@ -281,3 +282,56 @@ class UsersService(RecordService):
         self._check_permission(identity, "impersonate", user)
 
         return user.model.model_obj
+
+    @unit_of_work()
+    def add_group(self, identity, id_, group_name, uow=None):
+        """Add group to user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError("manage_groups")
+        group = GroupAggregate.get_record_by_name(group_name)
+        self.require_permission(identity, "manage_groups", record=group)
+        user.add_group(group_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
+        return True
+
+    @unit_of_work()
+    def remove_group(self, identity, id_, group_name, uow=None):
+        """Remove group from user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError("manage_groups")
+        group = GroupAggregate.get_record_by_name(group_name)
+        self.require_permission(identity, "manage_groups", record=group)
+        user.remove_group(group_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
+        return True
+
+    def list_groups(self, identity, id_):
+        """List groups of a user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "read", record=user)
+        group_results = {
+            "hits": {
+                "hits": [
+                    {
+                        "id": role.id,
+                        "name": role.name,
+                        "description": role.description,
+                    }
+                    for role in user.get_groups()
+                ]
+            }
+        }
+        return group_results
+
+    def _check_group_access(self, identity, action_name, group_name):
+        if not self._should_action_proceed(
+            identity, GroupAggregate.get_record_by_name(group_name)
+        ):
+            raise PermissionDeniedError(action_name)

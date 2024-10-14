@@ -4,6 +4,7 @@
 # Copyright (C) 2022 European Union.
 # Copyright (C) 2022-2024 CERN.
 # Copyright (C) 2023 Graz University of Technology.
+# Copyright (C) 2025 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -19,8 +20,12 @@ import pytest
 from flask_principal import AnonymousIdentity, Identity
 from invenio_access.models import ActionRoles
 from invenio_access.permissions import any_user as any_user_need
-from invenio_access.permissions import authenticated_user, system_identity
-from invenio_accounts.models import Domain, DomainCategory, DomainOrg, Role
+from invenio_access.permissions import (
+    authenticated_user,
+    superuser_access,
+    system_identity,
+)
+from invenio_accounts.models import Domain, DomainCategory, DomainOrg
 from invenio_accounts.proxies import current_datastore
 from invenio_app.factory import create_api
 from invenio_cache.proxies import current_cache
@@ -144,7 +149,24 @@ def auth_identity():
 
 
 @pytest.fixture(scope="module")
-def user_moderator(UserFixture, app, database, users):
+def user_admin(users, database, superadmin_group):
+    """User with notfications disabled."""
+    action_name = user_management_action.value
+    super_admin = users["admin_user"]
+
+    action_role = ActionRoles.create(action=superuser_access, role=superadmin_group)
+    database.session.add(action_role)
+
+    # super_admin.user.roles.append(admin_group)
+    super_admin.user.roles.append(superadmin_group)
+    database.session.commit()
+    current_groups_service.indexer.process_bulk_queue()
+    current_groups_service.record_cls.index.refresh()
+    return super_admin
+
+
+@pytest.fixture(scope="module")
+def user_moderator(UserFixture, app, database, users, admin_group):
     """Admin user for requests."""
     action_name = user_management_action.value
     moderator = users["user_moderator"]
@@ -160,8 +182,10 @@ def user_moderator(UserFixture, app, database, users):
     action_role = ActionRoles.create(action=user_management_action, role=role)
     database.session.add(action_role)
 
-    moderator.user.roles.append(role)
+    moderator.user.roles.append(admin_group)
     database.session.commit()
+    current_groups_service.indexer.process_bulk_queue()
+    current_groups_service.record_cls.index.refresh()
     return moderator
 
 
@@ -283,6 +307,21 @@ def users_data():
                 },
             },
         },
+        {
+            "username": "admin_user",
+            "email": "super_admin@inveniosoftware.org",
+            "profile": {
+                "full_name": "Mr",
+                "affiliations": "Super Admin",
+            },
+            "preferences": {
+                "visibility": "restricted",
+                "email_visibility": "public",
+                "notifications": {
+                    "enabled": False,
+                },
+            },
+        },
     ]
 
 
@@ -314,6 +353,33 @@ def _create_group(id, name, description, is_managed, database):
         id=id, name=name, description=description, is_managed=is_managed
     )
     current_datastore.commit()
+    return r
+
+
+@pytest.fixture(scope="module")
+def superadmin_group(database):
+    """Superadmin group."""
+    r = _create_group(
+        id="admin",
+        name="admin",
+        description="Super Admin Group",
+        is_managed=True,
+        database=database,
+    )
+    return r
+
+
+@pytest.fixture(scope="module")
+def admin_group(database):
+    """Admin group."""
+    action_name = user_management_action.value
+    r = _create_group(
+        id=action_name,
+        name=action_name,
+        description="user_management_action group",
+        is_managed=True,
+        database=database,
+    )
     return r
 
 
@@ -412,12 +478,6 @@ def user_notification_enabled(users):
 def user_notification_disabled(users):
     """User with notfications disabled."""
     return users["notification_disabled"]
-
-
-@pytest.fixture(scope="module")
-def user_admin(users):
-    """User with notfications disabled."""
-    return users["admin_user"]
 
 
 @pytest.fixture(scope="function")

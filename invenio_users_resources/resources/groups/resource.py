@@ -3,6 +3,7 @@
 # Copyright (C) 2022 TU Wien.
 # Copyright (C) 2022 CERN.
 # Copyright (C) 2022 European Union.
+# Copyright (C) 2024 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -10,15 +11,20 @@
 
 """User groups resource."""
 
-
+import sqlalchemy
 from flask import g, send_file
 from flask_resources import resource_requestctx, response_handler, route
 from invenio_records_resources.resources import RecordResource
 from invenio_records_resources.resources.records.resource import (
+    request_data,
+    request_extra_args,
+    request_headers,
     request_search_args,
     request_view_args,
 )
 from invenio_records_resources.resources.records.utils import search_preference
+
+from invenio_users_resources.errors import ForeignKeyIntegrityError
 
 
 #
@@ -32,8 +38,14 @@ class GroupsResource(RecordResource):
         routes = self.config.routes
         return [
             route("GET", routes["list"], self.search),
+            route("POST", routes["list"], self.create),
             route("GET", routes["item"], self.read),
+            route("PUT", routes["item"], self.update),
+            route("DELETE", routes["item"], self.delete),
             route("GET", routes["item-avatar"], self.avatar),
+            route("PUT", routes["manage-user"], self.add_user),
+            route("DELETE", routes["manage-user"], self.remove_user),
+            route("GET", routes["users"], self.users),
         ]
 
     @request_search_args
@@ -74,3 +86,70 @@ class GroupsResource(RecordResource):
             last_modified=avatar.last_modified,
             max_age=86400 * 7,
         )
+
+    @request_extra_args
+    @request_data
+    @response_handler()
+    def create(self):
+        """Create a group."""
+        item = self.service.create(
+            g.identity,
+            resource_requestctx.data or {},
+        )
+        return item.to_dict(), 201
+
+    @request_extra_args
+    @request_view_args
+    @request_data
+    @response_handler()
+    def update(self):
+        """Update a group."""
+        item = self.service.update(
+            g.identity,
+            id_=resource_requestctx.view_args["id"],
+            data=resource_requestctx.data or {},
+        )
+        return item.to_dict(), 200
+
+    @request_headers
+    @request_view_args
+    def delete(self):
+        """Delete a group."""
+        try:
+            self.service.delete(
+                g.identity,
+                resource_requestctx.view_args["id"],
+                revision_id=resource_requestctx.headers.get("if_match"),
+            )
+        except sqlalchemy.exc.IntegrityError as e:
+            raise ForeignKeyIntegrityError(e)
+        return "", 204
+
+    @request_view_args
+    def add_user(self):
+        """Add Admin user to group."""
+        self.service.add_user(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            user_id=resource_requestctx.view_args["user_id"],
+        )
+        return "", 200
+
+    @request_view_args
+    def remove_user(self):
+        """Remove Admin user from group."""
+        self.service.remove_user(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            user_id=resource_requestctx.view_args["user_id"],
+        )
+        return "", 200
+
+    @request_view_args
+    def users(self):
+        """Read group users."""
+        users = self.service.list_users(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+        )
+        return users, 200

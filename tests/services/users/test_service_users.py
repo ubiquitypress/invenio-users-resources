@@ -10,9 +10,12 @@
 """User service tests."""
 
 import pytest
+from invenio_access.permissions import system_identity
+from invenio_accounts.proxies import current_datastore
 from invenio_records_resources.services.errors import PermissionDeniedError
 from marshmallow import ValidationError
 
+from invenio_users_resources.permissions import user_management_action
 from invenio_users_resources.proxies import current_actions_registry
 
 
@@ -43,6 +46,17 @@ def test_search_restricted(user_service, anon_identity, user_pub):
     # Authenticated identity
     res = user_service.search(user_pub.identity).to_dict()
     assert res["hits"]["total"] > 0
+
+
+def test_read_user_roles(app, db, user_res, user_service, user_moderator, clear_cache):
+    """Test retrieving roles for a user."""
+    results = user_service.list_groups(system_identity, user_moderator.id)
+    assert len(results["hits"]["hits"]) == 1
+    assert results["hits"]["hits"][0]["name"] == user_management_action.value
+
+    results = user_service.list_groups(system_identity, user_res.id)
+    assert len(results["hits"]["hits"]) == 0
+    # assert True == False
 
 
 def test_search_public_users(user_service, user_pub):
@@ -364,7 +378,9 @@ def test_approve(
     assert "verified_at" in ur.data
 
 
-def test_deactivate(app, db, user_service, user_res, user_moderator, clear_cache):
+def test_deactivate(
+    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
+):
     """Test deactivation of an user."""
     with pytest.raises(PermissionDeniedError):
         user_service.block(user_res.identity, user_res.id)
@@ -397,7 +413,59 @@ def test_non_existent_user_management(app, db, user_service, user_moderator):
             f(user_moderator.identity, fake_user_id)
 
 
-def test_restore(app, db, user_service, user_res, user_moderator, clear_cache):
+def test_add_and_remove_group(
+    app,
+    db,
+    group_service,
+    user_service,
+    user_res,
+    user_moderator,
+    user_admin,
+    clear_cache,
+    search_clear,
+):
+    """Test restore of a user."""
+    assert user_res.user.roles == []
+
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(
+            user_res.identity, user_res.id, user_management_action.value
+        )
+
+    added = user_service.add_group(
+        user_moderator.identity, user_res.id, user_management_action.value
+    )
+    assert added
+
+    user = current_datastore.get_user(user_res.id)
+    assert [role.name for role in user.roles] == [user_management_action.value]
+
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(
+            user_res.identity, user_res.id, user_management_action.value
+        )
+
+    removed = user_service.remove_group(
+        user_moderator.identity, user_res.id, user_management_action.value
+    )
+    assert removed
+
+    user = current_datastore.get_user(user_res.id)
+    assert user.roles == []
+
+    # SuperAdmin Access required to add user to group
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(user_moderator.identity, user_res.id, "admin")
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(user_moderator.identity, user_res.id, "admin")
+    with pytest.raises(PermissionDeniedError):
+        user_service.remove_group(user_moderator.identity, user_res.id, "admin")
+    user_service.add_group(user_admin.identity, user_res.id, "admin")
+
+
+def test_restore(
+    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
+):
     """Test restore of a user."""
     blocked = user_service.block(user_moderator.identity, user_res.id)
     assert blocked

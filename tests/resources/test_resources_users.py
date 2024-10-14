@@ -16,6 +16,8 @@ import urllib.parse
 
 import pytest
 
+from invenio_users_resources.permissions import user_management_action
+
 
 #
 # Read
@@ -177,7 +179,7 @@ def test_create_user(client, headers, user_moderator, db):
     assert res.json["email"] == "newuser@inveniosoftware.org"
 
 
-def test_approve_user(client, headers, user_pub, user_moderator, db):
+def test_approve_user(client, headers, user_pub, user_moderator, db, search_clear):
     """Tests approve user endpoint."""
     client = user_moderator.login(client)
     res = client.post(f"/users/{user_pub.id}/approve", headers=headers)
@@ -192,7 +194,7 @@ def test_approve_user(client, headers, user_pub, user_moderator, db):
     assert res.status_code == 403
 
 
-def test_block_user(client, headers, user_pub, user_moderator, db):
+def test_block_user(client, headers, user_pub, user_moderator, db, search_clear):
     """Tests block user endpoint."""
     client = user_moderator.login(client)
     res = client.post(f"/users/{user_pub.id}/block", headers=headers)
@@ -210,7 +212,7 @@ def test_block_user(client, headers, user_pub, user_moderator, db):
     assert res.status_code == 200
 
 
-def test_deactivate_user(client, headers, user_pub, user_moderator, db):
+def test_deactivate_user(client, headers, user_pub, user_moderator, db, search_clear):
     """Tests deactivate user endpoint."""
     client = user_moderator.login(client)
     res = client.post(f"/users/{user_pub.id}/deactivate", headers=headers)
@@ -228,14 +230,14 @@ def test_deactivate_user(client, headers, user_pub, user_moderator, db):
     assert res.status_code == 200
 
 
-def test_management_permissions(client, headers, user_pub, db):
+def test_management_permissions(client, headers, user_pub, db, search_clear):
     """Test permissions at the resource level."""
     client = user_pub.login(client)
     res = client.post(f"/users/{user_pub.id}/deactivate", headers=headers)
     assert res.status_code == 403
 
 
-def test_impersonate_user(client, headers, user_pub, user_moderator, db):
+def test_impersonate_user(client, headers, user_pub, user_moderator, db, search_clear):
     """Tests user impersonation endpoint."""
     client = user_moderator.login(client)
     res = client.get(f"/users/{user_moderator.id}")
@@ -278,7 +280,7 @@ def test_impersonate_user(client, headers, user_pub, user_moderator, db):
     ],
 )
 def test_admin_links(
-    client, headers, user_moderator, user_pub, link_name, expected_url
+    client, headers, user_moderator, user_pub, link_name, expected_url, search_clear
 ):
     """Test admin links."""
     client = user_moderator.login(client)
@@ -324,6 +326,39 @@ def test_admin_links_visibility(client, headers, user_moderator, user_pub):
     assert "admin_records_html" not in data["links"]
     assert "admin_drafts_html" not in data["links"]
     assert "admin_moderation_html" not in data["links"]
+
+
+def test_role_management_for_user(
+    client, headers, user_pub, user_moderator, db, search_clear
+):
+    """Tests block user endpoint."""
+    client = user_moderator.login(client)
+
+    res = client.get(f"/users/{user_pub.id}/groups", headers=headers)
+    assert res.json == {"hits": {"hits": []}}
+    assert res.status_code == 200
+
+    res = client.put(
+        f"/users/{user_pub.id}/groups/{user_management_action.value}", headers=headers
+    )
+    assert res.status_code == 200
+
+    res = client.get(f"/users/{user_pub.id}/groups", headers=headers)
+    assert res.json == {
+        "hits": {
+            "hits": [
+                {
+                    "description": "user_management_action group",
+                    "id": "administration-moderation",
+                    "name": "administration-moderation",
+                }
+            ]
+        }
+    }
+    assert res.status_code == 200
+
+    res = client.delete(f"/users/{user_pub.id}/groups/{user_management_action.value}")
+    assert res.status_code == 200
 
 
 # TODO: test conditional requests

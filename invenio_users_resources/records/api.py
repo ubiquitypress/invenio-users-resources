@@ -11,6 +11,7 @@
 
 """API classes for user and group management in Invenio."""
 
+import re
 import unicodedata
 from collections import namedtuple
 from datetime import datetime
@@ -26,6 +27,7 @@ from invenio_records.systemfields import ModelField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
 from marshmallow import ValidationError
+from sqlalchemy import inspect
 from sqlalchemy.exc import NoResultFound
 
 from .dumpers import EmailFieldDumperExt
@@ -106,10 +108,14 @@ class BaseAggregate(Record):
         # You can only commit if you have an underlying model object.
         if self.model._model_obj is None:
             raise ValueError(f"{self.__class__.__name__} not backed by a model.")
+        # Domain needs to be added to session
+        # User and Group need to have session flushed as already added to session.
         if self.model._model_obj not in db.session:
             with db.session.begin_nested():
                 # make sure we get an id assigned
                 db.session.add(self.model._model_obj)
+        elif not inspect(self.model._model_obj).persistent:
+            db.session.flush()
         # Basically re-parses the model object.
         model = self.model_cls(model_obj=self.model._model_obj)
         self.model = model
@@ -284,6 +290,32 @@ class UserAggregate(BaseAggregate):
             return False
         return current_datastore.deactivate_user(user)
 
+    def add_group(self, group_name):
+        """Add group to current user."""
+        user = self.model.model_obj
+        if user is None:
+            return False
+        user, role = current_datastore._prepare_role_modify_args(user, group_name)
+        result = current_datastore.add_role_to_user(user, role)
+        return result
+
+    def remove_group(self, group_name):
+        """Remove group from current user."""
+        user = self.model.model_obj
+        if user is None:
+            return False
+        user, role = current_datastore._prepare_role_modify_args(user, group_name)
+        result = current_datastore.remove_role_from_user(user, role)
+        return result
+
+    def get_groups(self):
+        """Get groups of the current user."""
+        user = self.model.model_obj
+        if user is None:
+            return False
+        account_user = current_datastore.get_user(user.id)
+        return account_user.roles
+
     @classmethod
     def get_record(cls, id_):
         """Get the user via the specified ID."""
@@ -366,6 +398,90 @@ class GroupAggregate(BaseAggregate):
             if role is None:
                 return None
             return cls.from_model(role)
+
+    @classmethod
+    def validate_group(cls, data, id_=None):
+        """Validate the group data."""
+        errors = {}
+        if id_:
+            existing_name = (
+                db.session.query(current_datastore.role_model)
+                .filter(current_datastore.role_model.id != id_)
+                .filter_by(name=data["name"])
+                .first()
+            )
+        else:
+            existing_name = (
+                db.session.query(current_datastore.role_model)
+                .filter_by(name=data["name"])
+                .first()
+            )
+        if existing_name:
+            errors["name"] = ["Name already used by another group."]
+        if errors:
+            raise ValidationError(errors)
+
+    @classmethod
+    def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
+        """Create a new Flask Role and return it as a GroupAggregate."""
+        try:
+            #  Admin group view passes in an empty string as id, which will be a valid Role id.
+            if "id" in data and data["id"] == "":
+                data.pop("id")
+            # Validate data
+            cls.validate_group(data)
+            # Create Role
+            role = current_datastore.create_role(**data)
+            return cls.from_model(role)
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
+
+    @classmethod
+    def update(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
+        """Update a new User and store it in the database."""
+        try:
+            cls.validate_group(data, id_)
+            role = db.session.get(current_datastore.role_model, id_)
+            role.name = data.get("name", role.name)
+            role.description = data.get("description", role.description)
+            # Update Role
+            role = current_datastore.update_role(role)
+            return cls.from_model(role)
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
+
+    def add_user(self, user_id):
+        """Assign role to a user."""
+        user = db.session.get(current_datastore.user_model, user_id)
+        if not user:
+            return False
+
+        user, role = current_datastore._prepare_role_modify_args(user, self.name)
+        return current_datastore.add_role_to_user(user, role)
+
+    def remove_user(self, user_id):
+        """Unassign role to a user."""
+        user = db.session.get(current_datastore.user_model, user_id)
+        if not user:
+            return False
+
+        user, role = current_datastore._prepare_role_modify_args(user, self.name)
+        return current_datastore.remove_role_from_user(user, role)
+
+    def get_users(self):
+        """Get users assigned to the role."""
+        role = db.session.get(current_datastore.role_model, self.id)
+        if not role:
+            return []
+        return role.users.all()
+
+    def delete(self, force=True):
+        """Delete the group."""
+        db.session.delete(self.model.model_obj)
 
 
 class OrgNameDumperExt(SearchDumperExt):
