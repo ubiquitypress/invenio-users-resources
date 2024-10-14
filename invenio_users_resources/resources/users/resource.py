@@ -159,7 +159,6 @@ class UsersResource(RecordResource):
             impersonate_user(user, g.identity)
         return "", 200
 
-<<<<<<< HEAD
     @request_extra_args
     @request_data
     @response_handler()
@@ -170,7 +169,7 @@ class UsersResource(RecordResource):
             resource_requestctx.data or {},
         )
         return item.to_dict(), 201
-=======
+
     @request_view_args
     def add_role(self):
         """Add Admin roles to user."""
@@ -180,7 +179,7 @@ class UsersResource(RecordResource):
             role_name=resource_requestctx.view_args["role"],
         )
         return "", 200
-    
+
     @request_view_args
     def remove_role(self):
         """Remove Admin roles to user."""
@@ -190,4 +189,3 @@ class UsersResource(RecordResource):
             role_name=resource_requestctx.view_args["role"],
         )
         return "", 200
->>>>>>> 9dc8b67 (REPO-2500: Add user-role add and remove api endpoints)

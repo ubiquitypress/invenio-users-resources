@@ -276,20 +276,24 @@ class UserAggregate(BaseAggregate):
         user = self.model.model_obj
         if user is None:
             return False
-        account_user =  current_datastore.get_user(user.id)
-        current_roles = [role.name for role in account_user.roles] if account_user.roles else []
+        account_user = current_datastore.get_user(user.id)
+        current_roles = (
+            [role.name for role in account_user.roles] if account_user.roles else []
+        )
         if role_name not in current_roles:
             user, role = current_datastore._prepare_role_modify_args(user, role_name)
             return current_datastore.add_role_to_user(user, role)
         return True
-    
+
     def remove_role(self, role_name):
         """Remove role from current user."""
         user = self.model.model_obj
         if user is None:
             return False
-        account_user =  current_datastore.get_user(user.id)
-        current_roles = [role.name for role in account_user.roles] if account_user.roles else []
+        account_user = current_datastore.get_user(user.id)
+        current_roles = (
+            [role.name for role in account_user.roles] if account_user.roles else []
+        )
         if role_name in current_roles:
             user, role = current_datastore._prepare_role_modify_args(user, role_name)
             return current_datastore.remove_role_from_user(user, role)
