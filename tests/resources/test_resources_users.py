@@ -13,6 +13,8 @@
 
 import pytest
 
+from invenio_users_resources.permissions import user_management_action
+
 
 #
 # Read
@@ -282,6 +284,18 @@ def test_admin_links_visibility(client, headers, users, username, expected_admin
         assert "admin_records_html" not in data["links"]
         assert "admin_drafts_html" not in data["links"]
         assert "admin_moderation_html" not in data["links"]
+
+
+def test_role_management_for_user(client, headers, user_pub, user_moderator, db):
+    """Tests block user endpoint."""
+    client = user_moderator.login(client)
+    res = client.put(
+        f"/users/{user_pub.id}/roles/{user_management_action.value}", headers=headers
+    )
+    assert res.status_code == 200
+
+    res = client.delete(f"/users/{user_pub.id}/roles/{user_management_action.value}")
+    assert res.status_code == 200
 
 
 # TODO: test conditional requests
