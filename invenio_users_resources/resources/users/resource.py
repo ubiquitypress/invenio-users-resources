@@ -173,10 +173,11 @@ class UsersResource(RecordResource):
     @request_view_args
     def add_role(self):
         """Add Admin roles to user."""
-        self.service.add_admin_roles(
+        print(resource_requestctx.view_args)
+        self.service.add_role(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
-            role_name=resource_requestctx.view_args["role"],
+            role_name=resource_requestctx.view_args["role_id"],
         )
         return "", 200
 
@@ -186,6 +187,6 @@ class UsersResource(RecordResource):
         self.service.remove_role(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
-            role_name=resource_requestctx.view_args["role"],
+            role_name=resource_requestctx.view_args["role_id"],
         )
         return "", 200
