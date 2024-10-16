@@ -49,6 +49,7 @@ class UsersResourceConfig(RecordResourceConfig):
         "deactivate": "/<id>/deactivate",
         "impersonate": "/<id>/impersonate",
         "manage-role": "/<id>/roles/<role_id>",
+        "roles": "/<id>/roles",
     }
 
     request_view_args = {

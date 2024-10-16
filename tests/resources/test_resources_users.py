@@ -276,6 +276,9 @@ def test_role_management_for_user(client, headers, user_pub, user_moderator, db)
     )
     assert res.status_code == 200
 
+    res = client.get(f"/users/{user_pub.id}/roles", headers=headers)
+    assert res.status_code == 200
+
     res = client.delete(f"/users/{user_pub.id}/roles/{user_management_action.value}")
     assert res.status_code == 200
 
