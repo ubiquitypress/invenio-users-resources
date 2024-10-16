@@ -50,6 +50,7 @@ class UsersResource(RecordResource):
             route("POST", routes["impersonate"], self.impersonate),
             route("PUT", routes["manage-role"], self.add_role),
             route("DELETE", routes["manage-role"], self.remove_role),
+            route("GET", routes["roles"], self.roles),
             route("GET", routes["search_all"], self.search_all),
         ]
 
@@ -173,7 +174,6 @@ class UsersResource(RecordResource):
     @request_view_args
     def add_role(self):
         """Add Admin roles to user."""
-        print(resource_requestctx.view_args)
         self.service.add_role(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
@@ -190,3 +190,13 @@ class UsersResource(RecordResource):
             role_name=resource_requestctx.view_args["role_id"],
         )
         return "", 200
+
+    @request_view_args
+    @response_handler()
+    def roles(self):
+        """Read user roles."""
+        roles = self.service.list_roles(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+        )
+        return roles.to_dict(), 200
