@@ -112,7 +112,7 @@ def anon_identity():
 
 
 @pytest.fixture(scope="module")
-def user_moderator(UserFixture, app, database, users):
+def user_moderator(UserFixture, app, database, users, admin_group):
     """Admin user for requests."""
     action_name = user_management_action.value
     moderator = users["user_moderator"]
@@ -128,8 +128,10 @@ def user_moderator(UserFixture, app, database, users):
     action_role = ActionRoles.create(action=user_management_action, role=role)
     database.session.add(action_role)
 
-    moderator.user.roles.append(role)
+    moderator.user.roles.append(admin_group)
     database.session.commit()
+    current_groups_service.indexer.process_bulk_queue()
+    current_groups_service.record_cls.index.refresh()
     return moderator
 
 
@@ -282,6 +284,20 @@ def _create_group(id, name, description, is_managed, database):
         id=id, name=name, description=description, is_managed=is_managed
     )
     current_datastore.commit()
+    return r
+
+
+@pytest.fixture(scope="module")
+def admin_group(database):
+    """Admin group."""
+    action_name = user_management_action.value
+    r = _create_group(
+        id=action_name,
+        name=action_name,
+        description="Admin group",
+        is_managed=True,
+        database=database,
+    )
     return r
 
 
