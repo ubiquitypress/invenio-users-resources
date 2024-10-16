@@ -48,10 +48,13 @@ class UsersResourceConfig(RecordResourceConfig):
         "activate": "/<id>/activate",
         "deactivate": "/<id>/deactivate",
         "impersonate": "/<id>/impersonate",
+        "manage-role": "/<id>/roles/<role_id>",
+        "roles": "/<id>/roles",
     }
 
     request_view_args = {
         "id": ma.fields.Str(),
+        "role_id": ma.fields.Str(),
     }
 
     request_search_args = UsersSearchRequestArgsSchema

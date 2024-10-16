@@ -10,9 +10,12 @@
 """User service tests."""
 
 import pytest
+from invenio_access.permissions import system_identity
+from invenio_accounts.proxies import current_datastore
 from invenio_records_resources.services.errors import PermissionDeniedError
 from marshmallow import ValidationError
 
+from invenio_users_resources.permissions import user_management_action
 from invenio_users_resources.proxies import current_actions_registry
 
 
@@ -43,6 +46,17 @@ def test_search_restricted(user_service, anon_identity, user_pub):
     # Authenticated identity
     res = user_service.search(user_pub.identity).to_dict()
     assert res["hits"]["total"] > 0
+
+
+def test_read_user_roles(app, db, user_res, user_service, user_moderator, clear_cache):
+    """Test retrieving roles for a user."""
+    results = user_service.list_roles(system_identity, user_moderator.id)
+    assert len(results.to_dict()["hits"]["hits"]) == 1
+    assert results.to_dict()["hits"]["hits"][0]["name"] == user_management_action.value
+
+    results = user_service.list_roles(system_identity, user_res.id)
+    assert len(results.to_dict()["hits"]["hits"]) == 0
+    # assert True == False
 
 
 def test_search_public_users(user_service, user_pub):
@@ -386,6 +400,29 @@ def test_restore(app, db, user_service, user_res, user_moderator, clear_cache):
     assert ur.data["confirmed_at"] is not None
     assert ur.data["verified_at"] is None
     assert ur.data["blocked_at"] is None
+
+
+def test_add_and_remove_role(
+    app, db, user_service, user_res, user_moderator, clear_cache
+):
+    """Test restore of a user."""
+    assert user_res.user.roles == []
+
+    added = user_service.add_role(
+        user_moderator.identity, user_res.id, user_management_action.value
+    )
+    assert added
+
+    user = current_datastore.get_user(user_res.id)
+    assert [role.name for role in user.roles] == [user_management_action.value]
+
+    removed = user_service.remove_role(
+        user_moderator.identity, user_res.id, user_management_action.value
+    )
+    assert removed
+
+    user = current_datastore.get_user(user_res.id)
+    assert user.roles == []
 
 
 # TODO Clear the cache to test actions without locking side-effects
