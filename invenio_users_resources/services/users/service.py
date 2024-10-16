@@ -20,18 +20,21 @@ from invenio_accounts.proxies import current_datastore
 from invenio_accounts.utils import default_reset_password_link_func
 from invenio_db import db
 from invenio_records_resources.resources.errors import PermissionDeniedError
+from invenio_records_resources.resources.records.utils import search_preference
 from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_of_work
 from invenio_search.engine import dsl
 from marshmallow import ValidationError
 
+from invenio_users_resources.services.groups.results import GroupList
 from invenio_users_resources.services.results import AvatarResult
 from invenio_users_resources.services.users.tasks import (
     execute_moderation_actions,
     execute_reset_password_email,
 )
 
-from ...records.api import UserAggregate
+from ...proxies import current_groups_service
+from ...records.api import GroupAggregate, UserAggregate
 from .lock import ModerationMutex
 
 
@@ -306,3 +309,23 @@ class UsersService(RecordService):
         self.require_permission(identity, "manage", record=user)
         user.remove_role(role_name)
         return True
+
+    def list_roles(self, identity, id_):
+        """Remove role from user."""
+        user = UserAggregate.get_record(id_)
+        if user is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "read", record=user)
+        group_results = [role.name for role in user.get_roles()]
+        if group_results:
+            return current_groups_service.search(
+                identity,
+                search_preference=search_preference(),
+                q=f"id: [{','.join(group_results)}]",
+            )
+        return current_groups_service.search(
+            identity,
+            search_preference=search_preference(),
+            q=f"id: NOT_FOUND",
+        )

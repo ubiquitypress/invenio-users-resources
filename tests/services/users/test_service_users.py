@@ -10,6 +10,7 @@
 """User service tests."""
 
 import pytest
+from invenio_access.permissions import system_identity
 from invenio_accounts.proxies import current_datastore
 from invenio_records_resources.services.errors import PermissionDeniedError
 from marshmallow import ValidationError
@@ -45,6 +46,17 @@ def test_search_restricted(user_service, anon_identity, user_pub):
     # Authenticated identity
     res = user_service.search(user_pub.identity).to_dict()
     assert res["hits"]["total"] > 0
+
+
+def test_read_user_roles(app, db, user_res, user_service, user_moderator, clear_cache):
+    """Test retrieving roles for a user."""
+    results = user_service.list_roles(system_identity, user_moderator.id)
+    assert len(results.to_dict()["hits"]["hits"]) == 1
+    assert results.to_dict()["hits"]["hits"][0]["name"] == user_management_action.value
+
+    results = user_service.list_roles(system_identity, user_res.id)
+    assert len(results.to_dict()["hits"]["hits"]) == 0
+    # assert True == False
 
 
 def test_search_public_users(user_service, user_pub):

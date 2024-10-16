@@ -280,11 +280,8 @@ class UserAggregate(BaseAggregate):
         current_roles = (
             [role.name for role in account_user.roles] if account_user.roles else []
         )
-        print(current_roles)
         if role_name not in current_roles:
             user, role = current_datastore._prepare_role_modify_args(user, role_name)
-            print(user)
-            print(role)
             return current_datastore.add_role_to_user(user, role)
         return True
 
@@ -299,9 +296,16 @@ class UserAggregate(BaseAggregate):
         )
         if role_name in current_roles:
             user, role = current_datastore._prepare_role_modify_args(user, role_name)
-            print(role.name)
             return current_datastore.remove_role_from_user(user, role)
         return True
+
+    def get_roles(self):
+        """Get roles of the current user."""
+        user = self.model.model_obj
+        if user is None:
+            return False
+        account_user = current_datastore.get_user(user.id)
+        return account_user.roles
 
     @classmethod
     def get_record(cls, id_):
