@@ -271,8 +271,8 @@ class UserAggregate(BaseAggregate):
             return False
         return current_datastore.deactivate_user(user)
 
-    def add_role(self, role_name):
-        """Add role to current user."""
+    def add_group(self, group_name):
+        """Add group to current user."""
         user = self.model.model_obj
         if user is None:
             return False
@@ -280,13 +280,13 @@ class UserAggregate(BaseAggregate):
         current_roles = (
             [role.name for role in account_user.roles] if account_user.roles else []
         )
-        if role_name not in current_roles:
-            user, role = current_datastore._prepare_role_modify_args(user, role_name)
+        if group_name not in current_roles:
+            user, role = current_datastore._prepare_role_modify_args(user, group_name)
             return current_datastore.add_role_to_user(user, role)
         return True
 
-    def remove_role(self, role_name):
-        """Remove role from current user."""
+    def remove_group(self, group_name):
+        """Remove group from current user."""
         user = self.model.model_obj
         if user is None:
             return False
@@ -294,13 +294,13 @@ class UserAggregate(BaseAggregate):
         current_roles = (
             [role.name for role in account_user.roles] if account_user.roles else []
         )
-        if role_name in current_roles:
-            user, role = current_datastore._prepare_role_modify_args(user, role_name)
+        if group_name in current_roles:
+            user, role = current_datastore._prepare_role_modify_args(user, group_name)
             return current_datastore.remove_role_from_user(user, role)
         return True
 
-    def get_roles(self):
-        """Get roles of the current user."""
+    def get_groups(self):
+        """Get groups of the current user."""
         user = self.model.model_obj
         if user is None:
             return False
