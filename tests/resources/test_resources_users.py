@@ -290,14 +290,14 @@ def test_role_management_for_user(client, headers, user_pub, user_moderator, db)
     """Tests block user endpoint."""
     client = user_moderator.login(client)
     res = client.put(
-        f"/users/{user_pub.id}/roles/{user_management_action.value}", headers=headers
+        f"/users/{user_pub.id}/groups/{user_management_action.value}", headers=headers
     )
     assert res.status_code == 200
 
-    res = client.get(f"/users/{user_pub.id}/roles", headers=headers)
+    res = client.get(f"/users/{user_pub.id}/groups", headers=headers)
     assert res.status_code == 200
 
-    res = client.delete(f"/users/{user_pub.id}/roles/{user_management_action.value}")
+    res = client.delete(f"/users/{user_pub.id}/groups/{user_management_action.value}")
     assert res.status_code == 200
 
 
