@@ -50,11 +50,11 @@ def test_search_restricted(user_service, anon_identity, user_pub):
 
 def test_read_user_roles(app, db, user_res, user_service, user_moderator, clear_cache):
     """Test retrieving roles for a user."""
-    results = user_service.list_roles(system_identity, user_moderator.id)
+    results = user_service.list_groups(system_identity, user_moderator.id)
     assert len(results.to_dict()["hits"]["hits"]) == 1
     assert results.to_dict()["hits"]["hits"][0]["name"] == user_management_action.value
 
-    results = user_service.list_roles(system_identity, user_res.id)
+    results = user_service.list_groups(system_identity, user_res.id)
     assert len(results.to_dict()["hits"]["hits"]) == 0
     # assert True == False
 
@@ -402,13 +402,13 @@ def test_restore(app, db, user_service, user_res, user_moderator, clear_cache):
     assert ur.data["blocked_at"] is None
 
 
-def test_add_and_remove_role(
+def test_add_and_remove_group(
     app, db, user_service, user_res, user_moderator, clear_cache
 ):
     """Test restore of a user."""
     assert user_res.user.roles == []
 
-    added = user_service.add_role(
+    added = user_service.add_group(
         user_moderator.identity, user_res.id, user_management_action.value
     )
     assert added
@@ -416,7 +416,7 @@ def test_add_and_remove_role(
     user = current_datastore.get_user(user_res.id)
     assert [role.name for role in user.roles] == [user_management_action.value]
 
-    removed = user_service.remove_role(
+    removed = user_service.remove_group(
         user_moderator.identity, user_res.id, user_management_action.value
     )
     assert removed
