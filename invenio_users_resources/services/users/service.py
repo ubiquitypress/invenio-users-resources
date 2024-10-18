@@ -290,34 +290,34 @@ class UsersService(RecordService):
         self.require_permission(identity, "impersonate", record=user)
         return user.model.model_obj
 
-    def add_role(self, identity, id_, role_name):
-        """Add role to user."""
+    def add_group(self, identity, id_, group_name):
+        """Add group to user."""
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
             raise PermissionDeniedError()
         self.require_permission(identity, "manage", record=user)
-        user.add_role(role_name)
+        user.add_group(group_name)
         return True
 
-    def remove_role(self, identity, id_, role_name):
-        """Remove role from user."""
+    def remove_group(self, identity, id_, group_name):
+        """Remove group from user."""
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
             raise PermissionDeniedError()
         self.require_permission(identity, "manage", record=user)
-        user.remove_role(role_name)
+        user.remove_group(group_name)
         return True
 
-    def list_roles(self, identity, id_):
-        """Remove role from user."""
+    def list_groups(self, identity, id_):
+        """List groups of a user."""
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
             raise PermissionDeniedError()
         self.require_permission(identity, "read", record=user)
-        group_results = [role.name for role in user.get_roles()]
+        group_results = [role.name for role in user.get_groups()]
         if group_results:
             return current_groups_service.search(
                 identity,
