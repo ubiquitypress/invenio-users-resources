@@ -51,11 +51,11 @@ def test_search_restricted(user_service, anon_identity, user_pub):
 def test_read_user_roles(app, db, user_res, user_service, user_moderator, clear_cache):
     """Test retrieving roles for a user."""
     results = user_service.list_groups(system_identity, user_moderator.id)
-    assert len(results.to_dict()["hits"]["hits"]) == 1
-    assert results.to_dict()["hits"]["hits"][0]["name"] == user_management_action.value
+    assert len(results["hits"]["hits"]) == 1
+    assert results["hits"]["hits"][0]["name"] == user_management_action.value
 
     results = user_service.list_groups(system_identity, user_res.id)
-    assert len(results.to_dict()["hits"]["hits"]) == 0
+    assert len(results["hits"]["hits"]) == 0
     # assert True == False
 
 
