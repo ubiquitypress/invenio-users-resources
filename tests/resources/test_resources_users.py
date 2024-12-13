@@ -271,12 +271,28 @@ def test_admin_links_visibility(client, headers, users, username, expected_admin
 def test_role_management_for_user(client, headers, user_pub, user_moderator, db):
     """Tests block user endpoint."""
     client = user_moderator.login(client)
+
+    res = client.get(f"/users/{user_pub.id}/groups", headers=headers)
+    assert res.json == {"hits": {"hits": []}}
+    assert res.status_code == 200
+
     res = client.put(
         f"/users/{user_pub.id}/groups/{user_management_action.value}", headers=headers
     )
     assert res.status_code == 200
 
     res = client.get(f"/users/{user_pub.id}/groups", headers=headers)
+    assert res.json == {
+        "hits": {
+            "hits": [
+                {
+                    "description": "Admin group",
+                    "id": "administration-moderation",
+                    "name": "administration-moderation",
+                }
+            ]
+        }
+    }
     assert res.status_code == 200
 
     res = client.delete(f"/users/{user_pub.id}/groups/{user_management_action.value}")
