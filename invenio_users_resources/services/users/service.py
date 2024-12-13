@@ -317,15 +317,16 @@ class UsersService(RecordService):
             # return 403 even on empty resource due to security implications
             raise PermissionDeniedError()
         self.require_permission(identity, "read", record=user)
-        group_results = [role.name for role in user.get_groups()]
-        if group_results:
-            return current_groups_service.search(
-                identity,
-                search_preference=search_preference(),
-                q=f"id: [{','.join(group_results)}]",
-            )
-        return current_groups_service.search(
-            identity,
-            search_preference=search_preference(),
-            q=f"id: NOT_FOUND",
-        )
+        group_results = {
+            "hits": {
+                "hits": [
+                    {
+                        "id": role.id,
+                        "name": role.name,
+                        "description": role.description,
+                    }
+                    for role in user.get_groups()
+                ]
+            }
+        }
+        return group_results

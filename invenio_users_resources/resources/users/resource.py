@@ -192,11 +192,10 @@ class UsersResource(RecordResource):
         return "", 200
 
     @request_view_args
-    @response_handler()
     def groups(self):
         """Read user roles."""
         groups = self.service.list_groups(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
         )
-        return groups.to_dict(), 200
+        return groups, 200
