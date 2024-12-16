@@ -350,7 +350,9 @@ def test_approve(
     assert "verified_at" in ur.data
 
 
-def test_deactivate(app, db, user_service, user_res, user_moderator, clear_cache):
+def test_deactivate(
+    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
+):
     """Test deactivation of an user."""
     with pytest.raises(PermissionDeniedError):
         user_service.block(user_res.identity, user_res.id)
@@ -383,27 +385,8 @@ def test_non_existent_user_management(app, db, user_service, user_moderator):
             f(user_moderator.identity, fake_user_id)
 
 
-def test_restore(app, db, user_service, user_res, user_moderator, clear_cache):
-    """Test restore of a user."""
-    blocked = user_service.block(user_moderator.identity, user_res.id)
-    assert blocked
-
-    ur = user_service.read(user_moderator.identity, user_res.id)
-    assert ur.data["active"] == False
-    assert ur.data["blocked_at"] is not None
-
-    restored = user_service.restore(user_moderator.identity, user_res.id)
-    assert restored
-
-    ur = user_service.read(user_moderator.identity, user_res.id)
-    assert ur.data["active"] == True
-    assert ur.data["confirmed_at"] is not None
-    assert ur.data["verified_at"] is None
-    assert ur.data["blocked_at"] is None
-
-
 def test_add_and_remove_group(
-    app, db, user_service, user_res, user_moderator, clear_cache
+    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
 ):
     """Test restore of a user."""
     assert user_res.user.roles == []
@@ -423,6 +406,27 @@ def test_add_and_remove_group(
 
     user = current_datastore.get_user(user_res.id)
     assert user.roles == []
+
+
+def test_restore(
+    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
+):
+    """Test restore of a user."""
+    blocked = user_service.block(user_moderator.identity, user_res.id)
+    assert blocked
+
+    ur = user_service.read(user_moderator.identity, user_res.id)
+    assert ur.data["active"] == False
+    assert ur.data["blocked_at"] is not None
+
+    restored = user_service.restore(user_moderator.identity, user_res.id)
+    assert restored
+
+    ur = user_service.read(user_moderator.identity, user_res.id)
+    assert ur.data["active"] == True
+    assert ur.data["confirmed_at"] is not None
+    assert ur.data["verified_at"] is None
+    assert ur.data["blocked_at"] is None
 
 
 # TODO Clear the cache to test actions without locking side-effects
