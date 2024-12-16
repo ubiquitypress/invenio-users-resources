@@ -279,7 +279,6 @@ class UserAggregate(BaseAggregate):
             return False
         user, role = current_datastore._prepare_role_modify_args(user, group_name)
         result = current_datastore.add_role_to_user(user, role)
-        current_datastore.commit()
         return result
 
     def remove_group(self, group_name):
@@ -289,7 +288,6 @@ class UserAggregate(BaseAggregate):
             return False
         user, role = current_datastore._prepare_role_modify_args(user, group_name)
         result = current_datastore.remove_role_from_user(user, role)
-        current_datastore.commit()
         return result
 
     def get_groups(self):
@@ -298,12 +296,6 @@ class UserAggregate(BaseAggregate):
         if user is None:
             return False
         account_user = current_datastore.get_user(user.id)
-        print("get current---------")
-        print(account_user)
-        current_roles = (
-            [role.name for role in account_user.roles] if account_user.roles else []
-        )
-        print(current_roles)
         return account_user.roles
 
     @classmethod

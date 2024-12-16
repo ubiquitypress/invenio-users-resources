@@ -295,7 +295,8 @@ class UsersService(RecordService):
 
         return user.model.model_obj
 
-    def add_group(self, identity, id_, group_name):
+    @unit_of_work()
+    def add_group(self, identity, id_, group_name, uow=None):
         """Add group to user."""
         user = UserAggregate.get_record(id_)
         if user is None:
@@ -303,9 +304,11 @@ class UsersService(RecordService):
             raise PermissionDeniedError()
         self.require_permission(identity, "manage", record=user)
         user.add_group(group_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
 
-    def remove_group(self, identity, id_, group_name):
+    @unit_of_work()
+    def remove_group(self, identity, id_, group_name, uow=None):
         """Remove group from user."""
         user = UserAggregate.get_record(id_)
         if user is None:
@@ -313,6 +316,7 @@ class UsersService(RecordService):
             raise PermissionDeniedError()
         self.require_permission(identity, "manage", record=user)
         user.remove_group(group_name)
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
 
     def list_groups(self, identity, id_):
