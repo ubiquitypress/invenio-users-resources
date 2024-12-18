@@ -65,7 +65,9 @@ class GroupsPermissionPolicy(BasePermissionPolicy):
         GroupsEnabled("group"),
         SystemProcess(),
     ]
-    can_create = _can_any
+    can_create = _can_any + [
+        IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
+    ]
     can_read = _can_any + [
         IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
     ]

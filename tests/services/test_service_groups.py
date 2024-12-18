@@ -6,11 +6,12 @@
 # modify it under the terms of the MIT License; see LICENSE file for more
 # details.
 
-"""User service tests."""
+"""Group service tests."""
 
 import pytest
 from invenio_access.permissions import system_identity
 from invenio_records_resources.resources.errors import PermissionDeniedError
+from marshmallow import ValidationError
 
 
 def test_groups_sort(app, groups, group_service):
@@ -88,3 +89,57 @@ def test_groups_read(app, groups, group_service, user_pub, anon_identity):
         # Anon does not have permission to search
         with pytest.raises(PermissionDeniedError):
             group_service.read(anon_identity, g.name).to_dict()
+
+
+def test_create(
+    app, db, group_service, user_moderator, user_res, clear_cache, search_clear
+):
+    """Test user create."""
+    data = {
+        "name": "newgroup",
+        "description": "newgroup description",
+    }
+
+    with pytest.raises(PermissionDeniedError):
+        group_service.create(user_res.identity, data)
+
+    res = group_service.create(user_moderator.identity, data).to_dict()
+    assert res["name"] == "newgroup"
+
+    gr = group_service.read(user_moderator.identity, res["id"])
+    # # Make sure new user is active and verified
+    assert gr.data["id"] == "newgroup"
+    assert gr.data["name"] == "newgroup"
+    assert gr.data["description"] == "newgroup description"
+    assert gr.data["is_managed"] == True
+
+    # Cannot re-add same details for new group
+    with pytest.raises(ValidationError) as exc_info:
+        group_service.create(user_moderator.identity, data)
+
+    assert exc_info.value.messages == {
+        "name": ["Name already used by another group."],
+    }
+
+    # With just a name
+    res = group_service.create(
+        user_moderator.identity,
+        {
+            "name": "newgroup1",
+        },
+    ).to_dict()
+    assert res["name"] == "newgroup1"
+
+    gr = group_service.read(user_moderator.identity, res["id"])
+    # # Make sure new user is active and verified
+    assert gr.data["id"] == "newgroup1"
+
+    # Invalid as no name
+    with pytest.raises(ValidationError) as exc_info:
+        group_service.create(
+            user_moderator.identity,
+            {
+                "description": "newgroup description",
+            },
+        )
+    assert exc_info.value.messages == ["Unexpected Issue: 'name'"]

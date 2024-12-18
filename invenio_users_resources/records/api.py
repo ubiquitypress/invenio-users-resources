@@ -16,7 +16,7 @@ from collections import namedtuple
 from datetime import datetime
 
 from flask import current_app
-from invenio_accounts.models import Domain, User
+from invenio_accounts.models import Domain, Role, User
 from invenio_accounts.proxies import current_datastore
 from invenio_db import db
 from invenio_records.dumpers import SearchDumper, SearchDumperExt
@@ -25,6 +25,7 @@ from invenio_records.systemfields import ModelField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
 from marshmallow import ValidationError
+from sqlalchemy import inspect
 from sqlalchemy.exc import NoResultFound
 
 from .dumpers import EmailFieldDumperExt
@@ -94,6 +95,9 @@ class BaseAggregate(Record):
     @classmethod
     def from_model(cls, sa_model):
         """Create an aggregate from an SQL Alchemy model."""
+        print("from Model")
+        print(cls.model_cls)
+        print(sa_model)
         return cls({}, model=cls.model_cls(model_obj=sa_model))
 
     def _validate(self, *args, **kwargs):
@@ -105,10 +109,14 @@ class BaseAggregate(Record):
         # You can only commit if you have an underlying model object.
         if self.model._model_obj is None:
             raise ValueError(f"{self.__class__.__name__} not backed by a model.")
+        # Domain needs to be added to session
+        # User and Group need to have session flushed as already added to session.
         if self.model._model_obj not in db.session:
             with db.session.begin_nested():
                 # make sure we get an id assigned
                 db.session.add(self.model._model_obj)
+        elif not inspect(self.model._model_obj).persistent:
+            db.session.flush()
         # Basically re-parses the model object.
         model = self.model_cls(model_obj=self.model._model_obj)
         self.model = model
@@ -234,7 +242,6 @@ class UserAggregate(BaseAggregate):
                 raise ValidationError(errors)
             # Create User
             account_user = current_datastore.create_user(**data)
-            current_datastore.commit()  # Commit to save the user to the database
             return cls.from_model(account_user)
         except ValidationError:
             raise
@@ -378,6 +385,25 @@ class GroupAggregate(BaseAggregate):
             if role is None:
                 return None
             return cls.from_model(role)
+
+    @classmethod
+    def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
+        """Create a new Flask Role and return it as a GroupAggregate."""
+        try:
+            # Validate data
+            errors = {}
+            existing_name = db.session.query(Role).filter_by(name=data["name"]).first()
+            if existing_name:
+                errors["name"] = ["Name already used by another group."]
+            if errors:
+                raise ValidationError(errors)
+            # Create Role
+            role = current_datastore.create_role(**data)
+            return cls.from_model(role)
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
 
 
 class OrgNameDumperExt(SearchDumperExt):
