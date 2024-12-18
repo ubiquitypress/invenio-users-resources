@@ -95,6 +95,9 @@ class BaseAggregate(Record):
     @classmethod
     def from_model(cls, sa_model):
         """Create an aggregate from an SQL Alchemy model."""
+        print("from Model")
+        print(cls.model_cls)
+        print(sa_model)
         return cls({}, model=cls.model_cls(model_obj=sa_model))
 
     def _validate(self, *args, **kwargs):
