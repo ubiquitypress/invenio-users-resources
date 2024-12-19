@@ -29,7 +29,7 @@ def test_group_avatar(app, client, group, not_managed_group, user_pub):
 #
 # Management / moderation
 #
-def test_create_group(client, headers, user_moderator, db, search_clear):
+def test_create_and_update_group(client, headers, user_moderator, db, search_clear):
     """Tests approve user endpoint."""
     client = user_moderator.login(client)
     res = client.post(
@@ -47,6 +47,23 @@ def test_create_group(client, headers, user_moderator, db, search_clear):
     assert res.status_code == 200
     assert res.json["name"] == "newgroup"
     assert res.json["description"] == "New group description"
+    assert res.json["is_managed"] == True
+
+    res = client.put(
+        f"/groups/{res.json['id']}",
+        json={
+            "name": "newgroup",
+            "description": "New group description updated",
+            "is_managed": True,
+        },
+        headers=headers,
+    )
+    assert res.status_code == 200
+
+    res = client.get(f"/groups/{res.json['id']}")
+    assert res.status_code == 200
+    assert res.json["name"] == "newgroup"
+    assert res.json["description"] == "New group description updated"
     assert res.json["is_managed"] == True
 
 

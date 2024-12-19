@@ -95,9 +95,6 @@ class BaseAggregate(Record):
     @classmethod
     def from_model(cls, sa_model):
         """Create an aggregate from an SQL Alchemy model."""
-        print("from Model")
-        print(cls.model_cls)
-        print(sa_model)
         return cls({}, model=cls.model_cls(model_obj=sa_model))
 
     def _validate(self, *args, **kwargs):
@@ -387,16 +384,36 @@ class GroupAggregate(BaseAggregate):
             return cls.from_model(role)
 
     @classmethod
+    def validate_group(cls, data, id_=None):
+        """Validate the group data."""
+        errors = {}
+        if id_:
+            existing_name = (
+                db.session.query(current_datastore.role_model)
+                .filter(current_datastore.role_model.id != id_)
+                .filter_by(name=data["name"])
+                .first()
+            )
+        else:
+            existing_name = (
+                db.session.query(current_datastore.role_model)
+                .filter_by(name=data["name"])
+                .first()
+            )
+        if existing_name:
+            errors["name"] = ["Name already used by another group."]
+        if errors:
+            raise ValidationError(errors)
+
+    @classmethod
     def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
         """Create a new Flask Role and return it as a GroupAggregate."""
         try:
+            #  Admin group view passes in ah empty string as id, which will be a valid Role id.
+            if "id" in data and data["id"] == "":
+                data.pop("id")
             # Validate data
-            errors = {}
-            existing_name = db.session.query(Role).filter_by(name=data["name"]).first()
-            if existing_name:
-                errors["name"] = ["Name already used by another group."]
-            if errors:
-                raise ValidationError(errors)
+            cls.validate_group(data)
             # Create Role
             role = current_datastore.create_role(**data)
             return cls.from_model(role)
@@ -404,6 +421,47 @@ class GroupAggregate(BaseAggregate):
             raise
         except Exception as e:
             raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
+
+    @classmethod
+    def update(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
+        """Update a new User and store it in the database."""
+        try:
+            cls.validate_group(data, id_)
+            role = db.session.get(current_datastore.role_model, id_)
+            role.name = data.get("name", role.name)
+            role.description = data.get("description", role.description)
+            # Update Role
+            role = current_datastore.update_role(role)
+            return cls.from_model(role)
+        except ValidationError:
+            raise
+        except Exception as e:
+            raise ValidationError(message=f"Unexpected Issue: {str(e)}", data=data)
+
+    def add_user(self, user_id):
+        """Assign role to a user."""
+        user = db.session.get(current_datastore.user_model, user_id)
+        if not user:
+            return False
+
+        user, role = current_datastore._prepare_role_modify_args(user, self.name)
+        current_datastore.add_role_to_user(user, role)
+
+    def remove_user(self, user_id):
+        """Unassign role to a user."""
+        user = db.session.get(current_datastore.user_model, user_id)
+        if not user:
+            return False
+
+        user, role = current_datastore._prepare_role_modify_args(user, self.name)
+        current_datastore.remove_role_from_user(user, role)
+
+    def get_users(self):
+        """Get users assigned to the role."""
+        role = db.session.get(current_datastore.role_model, self.id)
+        if not role:
+            return []
+        return role.users.all()
 
 
 class OrgNameDumperExt(SearchDumperExt):

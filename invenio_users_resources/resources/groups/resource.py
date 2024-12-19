@@ -37,6 +37,7 @@ class GroupsResource(RecordResource):
             route("GET", routes["list"], self.search),
             route("POST", routes["list"], self.create),
             route("GET", routes["item"], self.read),
+            route("PUT", routes["item"], self.update),
             route("GET", routes["item-avatar"], self.avatar),
         ]
 
@@ -89,3 +90,16 @@ class GroupsResource(RecordResource):
             resource_requestctx.data or {},
         )
         return item.to_dict(), 201
+
+    @request_extra_args
+    @request_view_args
+    @request_data
+    @response_handler()
+    def update(self):
+        """Update a group."""
+        item = self.service.update(
+            g.identity,
+            id_=resource_requestctx.view_args["id"],
+            data=resource_requestctx.data or {},
+        )
+        return item.to_dict(), 200

@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2022 CERN.
+# Copyright (C) 2024 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
 # details.
 
 """Group service tests."""
+
+import copy
 
 import pytest
 from invenio_access.permissions import system_identity
@@ -91,7 +94,31 @@ def test_groups_read(app, groups, group_service, user_pub, anon_identity):
             group_service.read(anon_identity, g.name).to_dict()
 
 
-def test_create(
+def test_admin_group_create(
+    app, db, group_service, user_moderator, user_res, clear_cache, search_clear
+):
+    """Test user create."""
+    data = {
+        "created": "",
+        "description": "title formatting and disciplines api added.",
+        "id": "",
+        "is_managed": False,
+        "name": "Jake1",
+        "provider": "",
+        "revision_id": "",
+        "updated": "",
+    }
+
+    res = group_service.create(user_moderator.identity, data).to_dict()
+    assert res["name"] == "Jake1"
+    gr = group_service.read(user_moderator.identity, res["id"])
+    # Make sure id matches name and is managed
+    assert gr.data["name"] == "Jake1"
+    assert gr.data["description"] == "title formatting and disciplines api added."
+    assert gr.data["is_managed"] == True
+
+
+def test_create_and_update(
     app, db, group_service, user_moderator, user_res, clear_cache, search_clear
 ):
     """Test user create."""
@@ -107,11 +134,23 @@ def test_create(
     assert res["name"] == "newgroup"
 
     gr = group_service.read(user_moderator.identity, res["id"])
-    # # Make sure new user is active and verified
-    assert gr.data["id"] == "newgroup"
+    # Make sure id matches name and is managed
     assert gr.data["name"] == "newgroup"
     assert gr.data["description"] == "newgroup description"
     assert gr.data["is_managed"] == True
+
+    # Update group
+    updated_data = copy.deepcopy(data)
+    updated_data["description"] = "newgroup description updated"
+    res = group_service.update(
+        user_moderator.identity, gr.data["id"], updated_data
+    ).to_dict()
+    assert res["name"] == "newgroup"
+    assert res["description"] == "newgroup description updated"
+
+    gr = group_service.read(user_moderator.identity, res["id"])
+    assert gr.data["name"] == "newgroup"
+    assert gr.data["description"] == "newgroup description updated"
 
     # Cannot re-add same details for new group
     with pytest.raises(ValidationError) as exc_info:
@@ -143,3 +182,41 @@ def test_create(
             },
         )
     assert exc_info.value.messages == ["Unexpected Issue: 'name'"]
+
+
+def test_add_user_to_role(
+    app, db, group_service, user_moderator, user_res, clear_cache, search_clear
+):
+    """Test adding and removing user to group."""
+    data = {
+        "name": "newgroup",
+        "description": "newgroup description",
+    }
+    res = group_service.create(user_moderator.identity, data).to_dict()
+    assert res["name"] == "newgroup"
+
+    gr = group_service.read(user_moderator.identity, res["id"])
+    # Make sure id matches name and is managed
+    assert gr.data["name"] == "newgroup"
+    assert gr.data["description"] == "newgroup description"
+    assert gr.data["is_managed"] == True
+
+    # Add user to group
+    gr = group_service.add_user(
+        user_moderator.identity,
+        res["id"],
+        user_res.id,
+    )
+
+    gr = group_service.list_users(user_moderator.identity, res["id"])
+    assert gr == {"hits": {"hits": [{"id": int(user_res.id)}]}}
+
+    # Remove user from group
+    gr = group_service.remove_user(
+        user_moderator.identity,
+        res["id"],
+        user_res.id,
+    )
+
+    gr = group_service.list_users(user_moderator.identity, res["id"])
+    assert gr == {"hits": {"hits": []}}

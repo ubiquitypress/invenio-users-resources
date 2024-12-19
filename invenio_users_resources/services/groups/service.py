@@ -28,7 +28,7 @@ class GroupsService(RecordService):
     def read(self, identity, id_):
         """Retrieve a user group."""
         # resolve and require permission
-        group = GroupAggregate.get_record_by_name(id_)
+        group = GroupAggregate.get_record(id_)
         if group is None:
             # return 403 even on empty resource due to security implications
             raise PermissionDeniedError()
@@ -68,7 +68,6 @@ class GroupsService(RecordService):
             data,
             context={"identity": identity},
         )
-
         # create the role with the specified data
         group = self.record_cls.create(data)
 
@@ -87,3 +86,72 @@ class GroupsService(RecordService):
         return self.result_item(
             self, identity, group, links_tpl=self.links_item_tpl, errors=errors
         )
+
+    @unit_of_work()
+    def update(self, identity, id_, data, revision_id=None, uow=None, expand=False):
+        """Update a group."""
+        group = GroupAggregate.get_record(id_)
+        if group is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+
+        # Permissions
+        self.require_permission(identity, "update", record=group)
+
+        data, errors = self.schema.load(
+            data,
+            context={"identity": identity},
+        )
+        # Update the group
+        group = self.record_cls.update(data, id_)
+
+        # Run components
+        self.run_components("update", identity, data=data, record=group, uow=uow)
+
+        uow.register(RecordCommitOp(group, indexer=self.indexer, index_refresh=True))
+
+        return self.result_item(
+            self, identity, group, links_tpl=self.links_item_tpl, errors=errors
+        )
+
+    @unit_of_work()
+    def add_user(self, identity, id_, user_id, uow=None):
+        """Add group to user."""
+        group = GroupAggregate.get_record(id_)
+        if group is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "manage", record=group)
+        group.add_user(user_id)
+        uow.register(RecordCommitOp(group, indexer=self.indexer, index_refresh=True))
+        return True
+
+    @unit_of_work()
+    def remove_user(self, identity, id_, user_id, uow=None):
+        """Remove group from user."""
+        group = GroupAggregate.get_record(id_)
+        if group is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "manage", record=group)
+        group.remove_user(user_id)
+        uow.register(RecordCommitOp(group, indexer=self.indexer, index_refresh=True))
+        return True
+
+    def list_users(self, identity, id_):
+        """List users in a group."""
+        group = GroupAggregate.get_record(id_)
+        if group is None:
+            # return 403 even on empty resource due to security implications
+            raise PermissionDeniedError()
+        self.require_permission(identity, "read", record=group)
+        return {
+            "hits": {
+                "hits": [
+                    {
+                        "id": user.id,
+                    }
+                    for user in group.get_users()
+                ]
+            }
+        }
