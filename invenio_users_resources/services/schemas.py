@@ -133,7 +133,6 @@ class GroupSchema(BaseRecordSchema):
     """Schema for user groups."""
 
     name = fields.String()
-    title = fields.String()
     description = fields.String()
     provider = fields.String(dump_only=True)
     is_managed = fields.Boolean(dump_only=True)
