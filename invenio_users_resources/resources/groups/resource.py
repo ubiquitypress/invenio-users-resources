@@ -113,17 +113,17 @@ class GroupsResource(RecordResource):
         self.service.add_user(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
-            group_name=resource_requestctx.view_args["group_id"],
+            user_id=resource_requestctx.view_args["user_id"],
         )
         return "", 200
 
     @request_view_args
     def remove_user(self):
         """Remove Admin user from group."""
-        self.service.remove_group(
+        self.service.remove_user(
             id_=resource_requestctx.view_args["id"],
             identity=g.identity,
-            group_name=resource_requestctx.view_args["group_id"],
+            user_id=resource_requestctx.view_args["user_id"],
         )
         return "", 200
 
