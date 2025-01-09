@@ -16,6 +16,7 @@ from invenio_records_resources.services import (
     SearchOptions,
     pagination_links,
 )
+from invenio_records_resources.services.base.config import ConfiguratorMixin
 from invenio_records_resources.services.records.params import QueryStrParam, SortParam
 from invenio_records_resources.services.records.queryparser import QueryParser
 

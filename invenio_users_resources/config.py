@@ -240,3 +240,29 @@ USERS_RESOURCES_DOMAINS_ORG_SCHEMA = OrgPropsSchema
 
 USERS_RESOURCES_GROUPS_ENABLED = True
 """Config to enable features related to existence of groups."""
+
+
+USERS_RESOURCES_GROUPS_SEARCH = {
+    "facets": [],
+    "sort": ["name", "created", "updated"],
+}
+"""User search configuration."""
+
+USERS_RESOURCES_GROUPS_SORT_OPTIONS = {
+    "name": dict(
+        title=_("Set name"),
+        fields=["name"],
+    ),
+    "created": dict(
+        title=_("Created"),
+        fields=["created"],
+    ),
+    "updated": dict(
+        title=_("Updated"),
+        fields=["updated"],
+    ),
+}
+"""Definitions of available Users sort options. """
+
+USERS_RESOURCES_GROUPS_SEARCH_FACETS = {}
+"""Invenio groups facets."""

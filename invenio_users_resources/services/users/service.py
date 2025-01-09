@@ -78,6 +78,7 @@ class UsersService(RecordService):
             errors=errors,
             uow=uow,
         )
+        uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         # get email token and reset info
         account_user = current_datastore.get_user(user.id)
         token, reset_link = default_reset_password_link_func(account_user)
