@@ -38,10 +38,13 @@ class GroupsResourceConfig(RecordResourceConfig):
         "list": "",
         "item": "/<id>",
         "item-avatar": "/<id>/avatar.svg",
+        "manage-user": "/<id>/users/<user_id>",
+        "users": "/<id>/users",
     }
 
     request_view_args = {
         "id": ma.fields.Str(),
+        "user_id": ma.fields.Str(),
     }
 
     request_search_args = GroupSearchRequestArgsSchema

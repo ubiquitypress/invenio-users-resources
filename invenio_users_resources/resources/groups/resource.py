@@ -39,6 +39,9 @@ class GroupsResource(RecordResource):
             route("GET", routes["item"], self.read),
             route("PUT", routes["item"], self.update),
             route("GET", routes["item-avatar"], self.avatar),
+            route("PUT", routes["manage-user"], self.add_user),
+            route("DELETE", routes["manage-user"], self.remove_user),
+            route("GET", routes["users"], self.users),
         ]
 
     @request_search_args
@@ -103,3 +106,32 @@ class GroupsResource(RecordResource):
             data=resource_requestctx.data or {},
         )
         return item.to_dict(), 200
+
+    @request_view_args
+    def add_user(self):
+        """Add Admin user to group."""
+        self.service.add_user(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            user_id=resource_requestctx.view_args["user_id"],
+        )
+        return "", 200
+
+    @request_view_args
+    def remove_user(self):
+        """Remove Admin user from group."""
+        self.service.remove_user(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+            user_id=resource_requestctx.view_args["user_id"],
+        )
+        return "", 200
+
+    @request_view_args
+    def users(self):
+        """Read group users."""
+        users = self.service.list_users(
+            id_=resource_requestctx.view_args["id"],
+            identity=g.identity,
+        )
+        return users, 200

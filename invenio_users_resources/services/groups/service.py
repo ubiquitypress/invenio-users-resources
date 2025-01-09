@@ -151,6 +151,7 @@ class GroupsService(RecordService):
                 "hits": [
                     {
                         "id": user.id,
+                        "username": user.username,
                     }
                     for user in group.get_users()
                 ]
