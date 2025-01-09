@@ -67,6 +67,7 @@ class GroupsService(RecordService):
         data, errors = self.schema.load(
             data,
             context={"identity": identity},
+            raise_errors=raise_errors,
         )
         # create the role with the specified data
         group = self.record_cls.create(data)

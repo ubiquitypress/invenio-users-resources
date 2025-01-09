@@ -409,7 +409,7 @@ class GroupAggregate(BaseAggregate):
     def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
         """Create a new Flask Role and return it as a GroupAggregate."""
         try:
-            #  Admin group view passes in ah empty string as id, which will be a valid Role id.
+            #  Admin group view passes in an empty string as id, which will be a valid Role id.
             if "id" in data and data["id"] == "":
                 data.pop("id")
             # Validate data
@@ -445,7 +445,7 @@ class GroupAggregate(BaseAggregate):
             return False
 
         user, role = current_datastore._prepare_role_modify_args(user, self.name)
-        current_datastore.add_role_to_user(user, role)
+        return current_datastore.add_role_to_user(user, role)
 
     def remove_user(self, user_id):
         """Unassign role to a user."""
@@ -454,7 +454,7 @@ class GroupAggregate(BaseAggregate):
             return False
 
         user, role = current_datastore._prepare_role_modify_args(user, self.name)
-        current_datastore.remove_role_from_user(user, role)
+        return current_datastore.remove_role_from_user(user, role)
 
     def get_users(self):
         """Get users assigned to the role."""

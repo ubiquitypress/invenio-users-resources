@@ -58,7 +58,7 @@ class GroupSearchOptions(SearchOptions):
     ]
 
 
-class GroupsServiceConfig(RecordServiceConfig, ConfiguratorMixin):
+class GroupsServiceConfig(RecordServiceConfig):
     """Requests service configuration."""
 
     # common configuration
