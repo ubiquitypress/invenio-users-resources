@@ -3,6 +3,7 @@
 # Copyright (C) 2022 TU Wien.
 # Copyright (C) 2022 CERN.
 # Copyright (C) 2022 European Union.
+# Copyright (C) 2024 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -15,6 +16,8 @@ from flask import g, send_file
 from flask_resources import resource_requestctx, response_handler, route
 from invenio_records_resources.resources import RecordResource
 from invenio_records_resources.resources.records.resource import (
+    request_data,
+    request_extra_args,
     request_search_args,
     request_view_args,
 )
@@ -32,7 +35,9 @@ class GroupsResource(RecordResource):
         routes = self.config.routes
         return [
             route("GET", routes["list"], self.search),
+            route("POST", routes["list"], self.create),
             route("GET", routes["item"], self.read),
+            route("PUT", routes["item"], self.update),
             route("GET", routes["item-avatar"], self.avatar),
         ]
 
@@ -74,3 +79,27 @@ class GroupsResource(RecordResource):
             last_modified=avatar.last_modified,
             max_age=86400 * 7,
         )
+
+    @request_extra_args
+    @request_data
+    @response_handler()
+    def create(self):
+        """Create a group."""
+        item = self.service.create(
+            g.identity,
+            resource_requestctx.data or {},
+        )
+        return item.to_dict(), 201
+
+    @request_extra_args
+    @request_view_args
+    @request_data
+    @response_handler()
+    def update(self):
+        """Update a group."""
+        item = self.service.update(
+            g.identity,
+            id_=resource_requestctx.view_args["id"],
+            data=resource_requestctx.data or {},
+        )
+        return item.to_dict(), 200
