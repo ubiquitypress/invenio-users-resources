@@ -21,6 +21,8 @@ from invenio_records_permissions.generators import (
 )
 from invenio_search.engine import dsl
 
+from invenio_users_resources.permissions import SuperUserMixin
+
 
 class IfPublic(ConditionalGenerator):
     """Generator for different permissions based on the visibility settings."""
@@ -116,12 +118,38 @@ class IfGroupNotManaged(ConditionalGenerator):
         then_query = self._make_query(self.then_, **kwargs)
         else_query = self._make_query(self.else_, **kwargs)
         identity = kwargs.get("identity", None)
+
         if identity:
             permission = Permission(*self.needs(**kwargs))
             if permission.allows(identity):
                 return else_query
 
         return q_not_managed & then_query
+
+
+class IfSuperUser(SuperUserMixin, ConditionalGenerator):
+    """Generator for managing access to super group access."""
+
+    def __init__(self, then_, else_, **kwargs):
+        """Constructor."""
+        super().__init__(then_=then_, else_=else_, **kwargs)
+        self._field_name = "name"
+
+    def _condition(self, record, **kwargs):
+        """Condition to choose generators set."""
+        identity = kwargs.get("identity", None)
+        if identity:
+            return self._is_user_superadmin(identity)
+        return False
+
+    def query_filter(self, **kwargs):
+        """Filters for queries."""
+        then_query = self._make_query(self.then_, **kwargs)
+        else_query = self._make_query(self.else_, **kwargs)
+        identity = kwargs.get("identity", None)
+        if identity and self._is_user_superadmin(identity):
+            return then_query
+        return else_query
 
 
 class GroupsEnabled(Generator):
