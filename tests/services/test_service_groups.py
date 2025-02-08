@@ -57,23 +57,42 @@ def test_groups_search_field(app, group, group_service, query):
     assert res.total > 0
 
 
-def test_groups_search(app, groups, group_service, user_pub, anon_identity):
+def test_groups_search(
+    database,
+    app,
+    groups,
+    group_service,
+    user_pub,
+    anon_identity,
+    user_admin,
+    user_moderator,
+):
     """Test group search."""
 
     # System can retrieve all groups.
     res = group_service.search(system_identity).to_dict()
-    assert res["hits"]["total"] == len(groups)
+    assert res["hits"]["total"] == 5
 
-    # Authenticated user can retrieve unmanaged groups
+    # # Authenticated user can retrieve unmanaged groups
     res = group_service.search(user_pub.identity).to_dict()
     assert res["hits"]["total"] == len([g for g in groups if not g.is_managed])
+
+    # Super Admin can see everything
+    res = group_service.search(user_admin.identity).to_dict()
+    assert res["hits"]["total"] == 5
+
+    # User Admin can see everything but admin groups
+    res = group_service.search(user_moderator.identity).to_dict()
+    assert res["hits"]["total"] == 4
 
     # Anon does not have permission to search
     with pytest.raises(PermissionDeniedError):
         group_service.search(anon_identity).to_dict()
 
 
-def test_groups_read(app, groups, group_service, user_pub, anon_identity):
+def test_groups_read(
+    app, groups, group_service, user_admin, user_moderator, user_pub, anon_identity
+):
     """Test group read."""
 
     from invenio_accounts.models import Role
@@ -81,7 +100,6 @@ def test_groups_read(app, groups, group_service, user_pub, anon_identity):
     for g in groups:
         # System can retrieve all groups.
         group_service.read(system_identity, g.name).to_dict()
-
         # Authenticated user can retrieve unmanaged groups
         if g.is_managed:
             with pytest.raises(PermissionDeniedError):
@@ -92,6 +110,21 @@ def test_groups_read(app, groups, group_service, user_pub, anon_identity):
         # Anon does not have permission to search
         with pytest.raises(PermissionDeniedError):
             group_service.read(anon_identity, g.name).to_dict()
+
+    gac = group_service.record_cls
+    ga = gac.get_record_by_name("admin")
+    # System user
+    group_service.read(system_identity, g.name).to_dict()
+    # Super user
+    group_service.read(user_admin.identity, ga.id)
+    # User moderator
+    with pytest.raises(PermissionDeniedError):
+        group_service.read(user_moderator.identity, ga.id)
+    # Authenicated user
+    with pytest.raises(PermissionDeniedError):
+        group_service.read(user_pub.identity, ga.id)
+    with pytest.raises(PermissionDeniedError):
+        group_service.read(anon_identity, ga.id)
 
 
 def test_admin_group_create(
@@ -171,7 +204,7 @@ def test_create_and_update(
 
     gr = group_service.read(user_moderator.identity, res["id"])
     # # Make sure new user is active and verified
-    assert gr.data["id"] == "newgroup1"
+    assert gr.data["name"] == "newgroup1"
 
     # Invalid as no name
     with pytest.raises(ValidationError) as exc_info:
@@ -184,8 +217,42 @@ def test_create_and_update(
     assert exc_info.value.messages == ["Unexpected Issue: 'name'"]
 
 
+def test_update_of_super_admin_group(
+    app, db, group_service, user_moderator, user_admin, clear_cache, search_clear
+):
+    """Test user can update super admin if has super_admin role, else is denied permission"""
+    gac = group_service.record_cls
+    ga = gac.get_record_by_name("admin")
+    gr = group_service.read(user_admin.identity, ga.id)
+    # Update group
+    updated_data = copy.deepcopy(gr.data)
+    updated_data["description"] = "Changing the description of the super admin group"
+    # Fail update as group is superuser
+    with pytest.raises(PermissionDeniedError):
+        group_service.update(user_moderator.identity, gr.data["id"], updated_data)
+    res = group_service.update(
+        user_admin.identity, gr.data["id"], updated_data
+    ).to_dict()
+    # Make sure the description has been updated
+    assert res["description"] == "Changing the description of the super admin group"
+
+    # Permission denied for user_moderator as has no super admin role
+    updated_data = copy.deepcopy(gr.data)
+    updated_data["description"] = "Failed Change"
+
+    with pytest.raises(PermissionDeniedError):
+        group_service.update(user_moderator.identity, gr.data["id"], updated_data)
+
+
 def test_add_user_to_role(
-    app, db, group_service, user_moderator, user_res, clear_cache, search_clear
+    app,
+    db,
+    group_service,
+    user_admin,
+    user_moderator,
+    user_res,
+    clear_cache,
+    search_clear,
 ):
     """Test adding and removing user to group."""
     data = {
@@ -209,7 +276,9 @@ def test_add_user_to_role(
     )
 
     gr = group_service.list_users(user_moderator.identity, res["id"])
-    assert gr == {"hits": {"hits": [{"id": int(user_res.id)}]}}
+    assert gr == {
+        "hits": {"hits": [{"id": int(user_res.id), "username": user_res.username}]}
+    }
 
     # Remove user from group
     gr = group_service.remove_user(

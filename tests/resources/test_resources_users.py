@@ -306,7 +306,7 @@ def test_role_management_for_user(
         "hits": {
             "hits": [
                 {
-                    "description": "Admin group",
+                    "description": "user_management_action group",
                     "id": "administration-moderation",
                     "name": "administration-moderation",
                 }

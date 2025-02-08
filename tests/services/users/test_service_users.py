@@ -386,7 +386,15 @@ def test_non_existent_user_management(app, db, user_service, user_moderator):
 
 
 def test_add_and_remove_group(
-    app, db, user_service, user_res, user_moderator, clear_cache, search_clear
+    app,
+    db,
+    group_service,
+    user_service,
+    user_res,
+    user_moderator,
+    user_admin,
+    clear_cache,
+    search_clear,
 ):
     """Test restore of a user."""
     assert user_res.user.roles == []
@@ -406,6 +414,12 @@ def test_add_and_remove_group(
 
     user = current_datastore.get_user(user_res.id)
     assert user.roles == []
+
+    # SuperAdmin Access required to add user to group
+    with pytest.raises(PermissionDeniedError):
+        user_service.remove_group(user_moderator.identity, user_res.id, "admin")
+    with pytest.raises(PermissionDeniedError):
+        user_service.remove_group(user_moderator.identity, user_res.id, "admin")
 
 
 def test_restore(

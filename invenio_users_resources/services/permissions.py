@@ -10,6 +10,7 @@
 
 """Users and user groups permissions."""
 
+from invenio_access import superuser_access
 from invenio_records_permissions import BasePermissionPolicy
 from invenio_records_permissions.generators import (
     AdminAction,
@@ -18,7 +19,10 @@ from invenio_records_permissions.generators import (
     SystemProcess,
 )
 
-from invenio_users_resources.permissions import user_management_action
+from invenio_users_resources.permissions import (
+    AdministratorAction,
+    user_management_action,
+)
 
 from .generators import (
     GroupsEnabled,
@@ -26,10 +30,12 @@ from .generators import (
     IfPublicEmail,
     IfPublicUser,
     PreventSelf,
+    IfSuperUser,
     Self,
 )
 
-UserManager = AdminAction(user_management_action)
+UserManager = AdministratorAction(user_management_action)
+SuperAdminManager = AdminAction(superuser_access)
 
 
 class UsersPermissionPolicy(BasePermissionPolicy):
@@ -71,14 +77,23 @@ class GroupsPermissionPolicy(BasePermissionPolicy):
         IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
     ]
     can_read = _can_any + [
-        IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
+        IfSuperUser(
+            [SuperAdminManager],
+            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+        ),
     ]
     can_search = _can_any + [AuthenticatedUser()]
     can_update = _can_any + [
-        IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
+        IfSuperUser(
+            [SuperAdminManager],
+            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+        ),
     ]
     can_manage = _can_any + [
-        IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
+        IfSuperUser(
+            [SuperAdminManager],
+            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+        ),
     ]
     can_delete = _can_any
 
