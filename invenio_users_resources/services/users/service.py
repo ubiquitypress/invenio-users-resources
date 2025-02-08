@@ -20,25 +20,23 @@ from invenio_accounts.proxies import current_datastore
 from invenio_accounts.utils import default_reset_password_link_func
 from invenio_db import db
 from invenio_records_resources.resources.errors import PermissionDeniedError
-from invenio_records_resources.resources.records.utils import search_preference
 from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, TaskOp, unit_of_work
 from invenio_search.engine import dsl
 from marshmallow import ValidationError
 
-from invenio_users_resources.services.groups.results import GroupList
+from invenio_users_resources.permissions import SuperUserMixin
 from invenio_users_resources.services.results import AvatarResult
 from invenio_users_resources.services.users.tasks import (
     execute_moderation_actions,
     execute_reset_password_email,
 )
 
-from ...proxies import current_groups_service
 from ...records.api import GroupAggregate, UserAggregate
 from .lock import ModerationMutex
 
 
-class UsersService(RecordService):
+class UsersService(SuperUserMixin, RecordService):
     """Users service."""
 
     @property
@@ -297,8 +295,9 @@ class UsersService(RecordService):
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
-            raise PermissionDeniedError()
+            raise PermissionDeniedError("manage")
         self.require_permission(identity, "manage", record=user)
+        self._check_group_access(identity, "manage", group_name)
         user.add_group(group_name)
         uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
@@ -309,8 +308,9 @@ class UsersService(RecordService):
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
-            raise PermissionDeniedError()
+            raise PermissionDeniedError("manage")
         self.require_permission(identity, "manage", record=user)
+        self._check_group_access(identity, "manage", group_name)
         user.remove_group(group_name)
         uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
@@ -335,3 +335,9 @@ class UsersService(RecordService):
             }
         }
         return group_results
+
+    def _check_group_access(self, identity, action_name, group_name):
+        if not self._should_action_proceed(
+            identity, GroupAggregate.get_record_by_name(group_name)
+        ):
+            raise PermissionDeniedError(action_name)

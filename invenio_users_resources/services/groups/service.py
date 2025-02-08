@@ -18,11 +18,13 @@ from invenio_records_resources.resources.errors import PermissionDeniedError
 from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.uow import RecordCommitOp, unit_of_work
 
+from invenio_users_resources.permissions import SuperUserMixin
+
 from ...records.api import GroupAggregate
 from ..results import AvatarResult
 
 
-class GroupsService(RecordService):
+class GroupsService(SuperUserMixin, RecordService):
     """User groups service."""
 
     def read(self, identity, id_):
@@ -98,7 +100,6 @@ class GroupsService(RecordService):
 
         # Permissions
         self.require_permission(identity, "update", record=group)
-
         data, errors = self.schema.load(
             data,
             context={"identity": identity},
@@ -157,3 +158,24 @@ class GroupsService(RecordService):
                 ]
             }
         }
+
+    def permission_policy(self, action_name, identity, **kwargs):
+        """Factory for a permission policy instance."""
+        kwargs["identity"] = identity
+        return self.config.permission_policy_cls(action_name, **kwargs)
+
+    def check_permission(self, identity, action_name, **kwargs):
+        """Check a permission against the identity."""
+        return self.permission_policy(action_name, identity, **kwargs).allows(identity)
+
+    def require_permission(self, identity, action_name, **kwargs):
+        """Require a specific permission from the permission policy.
+
+        Like `check_permission` but raises an error if not allowed.
+        """
+        if action_name in ["read", "update", "manage"]:
+            if not self._should_action_proceed(identity, kwargs["record"]):
+                raise PermissionDeniedError(action_name)
+
+        if not self.check_permission(identity, action_name, **kwargs):
+            raise PermissionDeniedError(action_name)

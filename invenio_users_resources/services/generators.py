@@ -3,6 +3,7 @@
 # Copyright (C) 2022 TU Wien.
 # Copyright (C) 2022 CERN.
 # Copyright (C) 2023 Graz University of Technology.
+# Copyright (C) 2025 Ubiquity Press.
 #
 # Invenio-Users-Resources is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -12,7 +13,7 @@
 
 
 from flask import current_app
-from invenio_access.permissions import any_user
+from invenio_access.permissions import Permission, any_user
 from invenio_records.dictutils import dict_lookup
 from invenio_records_permissions.generators import (
     ConditionalGenerator,
@@ -20,6 +21,8 @@ from invenio_records_permissions.generators import (
     UserNeed,
 )
 from invenio_search.engine import dsl
+
+from invenio_users_resources.permissions import SuperUserMixin
 
 
 class IfPublic(ConditionalGenerator):
@@ -112,19 +115,43 @@ class IfGroupNotManaged(ConditionalGenerator):
 
     def query_filter(self, **kwargs):
         """Filters for queries."""
-        q_all = dsl.Q("match_all")
         q_not_managed = dsl.Q("match", **{self._field_name: False})
+        then_query = self._make_query(self.then_, **kwargs)
+        else_query = self._make_query(self.else_, **kwargs)
+        identity = kwargs.get("identity", None)
+
+        if identity:
+            permission = Permission(*self.needs(**kwargs))
+            if permission.allows(identity):
+                return else_query
+
+        return q_not_managed & then_query
+
+
+class IfSuperUser(SuperUserMixin, ConditionalGenerator):
+    """Generator for managing access to super group access."""
+
+    def __init__(self, then_, else_, **kwargs):
+        """Constructor."""
+        super().__init__(then_=then_, else_=else_, **kwargs)
+        self._field_name = "name"
+
+    def _condition(self, record, **kwargs):
+        """Condition to choose generators set."""
+        identity = kwargs.get("identity", None)
+        if identity:
+            return self._is_user_superadmin(identity)
+        return False
+
+    def query_filter(self, **kwargs):
+        """Filters for queries."""
         then_query = self._make_query(self.then_, **kwargs)
         else_query = self._make_query(self.else_, **kwargs)
 
         identity = kwargs.get("identity", None)
-
-        if identity:
-            for need in self.needs(**kwargs):
-                if need in identity.provides:
-                    return q_all & else_query
-
-        return q_not_managed & then_query
+        if identity and self._is_user_superadmin(identity):
+            return then_query
+        return else_query
 
 
 class GroupsEnabled(Generator):
