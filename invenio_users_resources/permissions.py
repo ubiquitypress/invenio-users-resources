@@ -19,15 +19,24 @@ user_management_action = action_factory(USER_MANAGEMENT_ACTION_NAME)
 class SuperUserMixin:
     """Mixin for superuser permissions."""
 
+    def _get_superadmin_roles(self):
+        """Get all roles with superuser access action role."""
+        return ActionRoles.query_by_action(superuser_access).all()
+
+    def _get_superadmin_users(self):
+        return {
+            user.id for role in self._get_superadmin_roles() for user in role.role.users
+        }
+
+    def _get_superadmin_groups(self):
+        return {role.role.name for role in self._get_superadmin_roles()}
+
     def _is_group_superadmin(self, group_id, roles):
+        """Check if the group has the superuser role."""
         groups = {role.role.id for role in roles}
         if group_id in groups:
             return True
         return False
-
-    def _get_superadmin_roles(self):
-        """Get all roles with superuser access action role."""
-        return ActionRoles.query_by_action(superuser_access).all()
 
     def _is_user_superadmin(self, identity, roles=None):
         """Check if the user has the superuser role."""
@@ -37,28 +46,8 @@ class SuperUserMixin:
             return True
         return False
 
-    def _should_action_proceed(self, identity, group):
-        """Check if the user has the superuser role."""
-        # Get all roles with superuser access action role.
-        if not identity or group is None:
-            return True
-        roles = ActionRoles.query_by_action(superuser_access).all()
-        # If no Superuser roles
-        if not roles:
-            return True
-        # Check if user and group are superadmin
-        is_user_super = self._is_user_superadmin(identity, roles=roles)
-        is_group_super = self._is_group_superadmin(group.id, roles)
-        options = {
-            (True, True): True,  # Both are superadmins
-            (True, False): True,  # Only user is superadmin
-            (False, True): False,  # Only group is superadmin
-            (False, False): True,  # Both not superadmin
-        }
-        return options[(is_user_super, is_group_super)]
 
-
-class AdministratorAction(AdminAction):
+class AdministratorGroupAction(SuperUserMixin, AdminAction):
     """Generator for user administrator needs.
 
     This generator's purpose is to be used in cases where administration needs are required.
@@ -66,10 +55,25 @@ class AdministratorAction(AdminAction):
     """
 
     def query_filter(self, identity, **kwargs):
-        """Not implemented at this level."""
+        """If the user is user moderator then can query all but super user groups."""
         permission = Permission(self.action)
         if permission.allows(identity):
-            roles = ActionRoles.query_by_action(superuser_access).all()
-            role_names = {role.role.name for role in roles}
+            role_names = self._get_superadmin_groups()
             return dsl.Q("match_all") & ~dsl.Q("terms", **{"name": list(role_names)})
+        return []
+
+
+class AdministratorUserAction(SuperUserMixin, AdminAction):
+    """Generator for user administrator needs.
+
+    This generator's purpose is to be used in cases where administration needs are required.
+    The query filter of this generator is quite broad (match_all). Therefore, it must be used with care.
+    """
+
+    def query_filter(self, identity, **kwargs):
+        """If the user is user moderator then can query all but super user groups."""
+        permission = Permission(self.action)
+        if permission.allows(identity):
+            user_names = self._get_superadmin_users()
+            return dsl.Q("match_all") & ~dsl.Q("terms", **{"id": list(user_names)})
         return []

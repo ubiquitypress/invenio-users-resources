@@ -173,9 +173,5 @@ class GroupsService(SuperUserMixin, RecordService):
 
         Like `check_permission` but raises an error if not allowed.
         """
-        if action_name in ["read", "update", "manage"]:
-            if not self._should_action_proceed(identity, kwargs["record"]):
-                raise PermissionDeniedError(action_name)
-
         if not self.check_permission(identity, action_name, **kwargs):
             raise PermissionDeniedError(action_name)
