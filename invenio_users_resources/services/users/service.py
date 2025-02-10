@@ -295,9 +295,9 @@ class UsersService(SuperUserMixin, RecordService):
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
-            raise PermissionDeniedError("manage")
-        self.require_permission(identity, "manage", record=user)
-        self._check_group_access(identity, "manage", group_name)
+            raise PermissionDeniedError("manage_groups")
+        group = GroupAggregate.get_record_by_name(group_name)
+        self.require_permission(identity, "manage_groups", record=group)
         user.add_group(group_name)
         uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
@@ -308,9 +308,9 @@ class UsersService(SuperUserMixin, RecordService):
         user = UserAggregate.get_record(id_)
         if user is None:
             # return 403 even on empty resource due to security implications
-            raise PermissionDeniedError("manage")
-        self.require_permission(identity, "manage", record=user)
-        self._check_group_access(identity, "manage", group_name)
+            raise PermissionDeniedError("manage_groups")
+        group = GroupAggregate.get_record_by_name(group_name)
+        self.require_permission(identity, "manage_groups", record=group)
         user.remove_group(group_name)
         uow.register(RecordCommitOp(user, indexer=self.indexer, index_refresh=True))
         return True
@@ -341,3 +341,12 @@ class UsersService(SuperUserMixin, RecordService):
             identity, GroupAggregate.get_record_by_name(group_name)
         ):
             raise PermissionDeniedError(action_name)
+
+    def permission_policy(self, action_name, identity, **kwargs):
+        """Factory for a permission policy instance."""
+        kwargs["identity"] = identity
+        return self.config.permission_policy_cls(action_name, **kwargs)
+
+    def check_permission(self, identity, action_name, **kwargs):
+        """Check a permission against the identity."""
+        return self.permission_policy(action_name, identity, **kwargs).allows(identity)
