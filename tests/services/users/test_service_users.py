@@ -399,6 +399,11 @@ def test_add_and_remove_group(
     """Test restore of a user."""
     assert user_res.user.roles == []
 
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(
+            user_res.identity, user_res.id, user_management_action.value
+        )
+
     added = user_service.add_group(
         user_moderator.identity, user_res.id, user_management_action.value
     )
@@ -406,6 +411,11 @@ def test_add_and_remove_group(
 
     user = current_datastore.get_user(user_res.id)
     assert [role.name for role in user.roles] == [user_management_action.value]
+
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(
+            user_res.identity, user_res.id, user_management_action.value
+        )
 
     removed = user_service.remove_group(
         user_moderator.identity, user_res.id, user_management_action.value
@@ -417,9 +427,12 @@ def test_add_and_remove_group(
 
     # SuperAdmin Access required to add user to group
     with pytest.raises(PermissionDeniedError):
-        user_service.remove_group(user_moderator.identity, user_res.id, "admin")
+        user_service.add_group(user_moderator.identity, user_res.id, "admin")
+    with pytest.raises(PermissionDeniedError):
+        user_service.add_group(user_moderator.identity, user_res.id, "admin")
     with pytest.raises(PermissionDeniedError):
         user_service.remove_group(user_moderator.identity, user_res.id, "admin")
+    user_service.add_group(user_admin.identity, user_res.id, "admin")
 
 
 def test_restore(

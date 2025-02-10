@@ -102,10 +102,14 @@ def test_groups_read(
         group_service.read(system_identity, g.name).to_dict()
         # Authenticated user can retrieve unmanaged groups
         if g.is_managed:
+            group_service.read(user_admin.identity, g.name).to_dict()
+            group_service.read(user_moderator.identity, g.name).to_dict()
             with pytest.raises(PermissionDeniedError):
                 group_service.read(user_pub.identity, g.name).to_dict()
         else:
             group_service.read(user_pub.identity, g.name).to_dict()
+            group_service.read(user_admin.identity, g.name).to_dict()
+            group_service.read(user_moderator.identity, g.name).to_dict()
 
         # Anon does not have permission to search
         with pytest.raises(PermissionDeniedError):
@@ -117,9 +121,6 @@ def test_groups_read(
     group_service.read(system_identity, g.name).to_dict()
     # Super user
     group_service.read(user_admin.identity, ga.id)
-    # User moderator
-    with pytest.raises(PermissionDeniedError):
-        group_service.read(user_moderator.identity, ga.id)
     # Authenicated user
     with pytest.raises(PermissionDeniedError):
         group_service.read(user_pub.identity, ga.id)
@@ -289,3 +290,9 @@ def test_add_user_to_role(
 
     gr = group_service.list_users(user_moderator.identity, res["id"])
     assert gr == {"hits": {"hits": []}}
+
+    gac = group_service.record_cls
+    ga = gac.get_record_by_name("admin")
+
+    with pytest.raises(PermissionDeniedError):
+        group_service.add_user(user_moderator.identity, ga.id, user_res.id)

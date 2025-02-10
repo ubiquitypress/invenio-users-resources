@@ -20,21 +20,26 @@ from invenio_records_permissions.generators import (
 )
 
 from invenio_users_resources.permissions import (
-    AdministratorAction,
+    AdministratorGroupAction,
+    AdministratorUserAction,
     user_management_action,
 )
 
 from .generators import (
     GroupsEnabled,
+    IfGroupActionRoleMatches,
     IfGroupNotManaged,
     IfPublicEmail,
     IfPublicUser,
     PreventSelf,
     IfSuperUser,
+    IfUserActionRoleMatches,
     Self,
 )
 
-UserManager = AdministratorAction(user_management_action)
+UserManager = AdminAction(user_management_action)
+UserManagerForGroups = AdministratorGroupAction(user_management_action)
+UserManagerForUsers = AdministratorUserAction(user_management_action)
 SuperAdminManager = AdminAction(superuser_access)
 
 
@@ -57,13 +62,29 @@ class UsersPermissionPolicy(BasePermissionPolicy):
         SystemProcess(),
     ]
     can_read_details = [UserManager, Self(), SystemProcess()]
-    can_read_all = [UserManager, SystemProcess()]
+    can_read_all = [
+        SystemProcess(),
+        IfUserActionRoleMatches(
+            [SuperAdminManager, UserManagerForUsers], [SystemProcess()]
+        ),
+    ]
 
     # Moderation permissions
     can_manage = [UserManager, PreventSelf(), SystemProcess()]
     can_search_all = [UserManager, SystemProcess()]
     can_read_system_details = [UserManager, SystemProcess()]
-    can_impersonate = [UserManager, PreventSelf(), SystemProcess()]
+    can_impersonate = [
+        SystemProcess(),
+        IfUserActionRoleMatches(
+            [SuperAdminManager, PreventSelf(), UserManagerForUsers], [SystemProcess()]
+        ),
+    ]
+    can_manage_groups = [
+        SystemProcess(),
+        IfGroupActionRoleMatches(
+            [SuperAdminManager, UserManagerForGroups], [SystemProcess()]
+        ),
+    ]
 
 
 class GroupsPermissionPolicy(BasePermissionPolicy):
@@ -74,25 +95,23 @@ class GroupsPermissionPolicy(BasePermissionPolicy):
         SystemProcess(),
     ]
     can_create = _can_any + [
-        IfGroupNotManaged([AuthenticatedUser()], [UserManager]),
+        IfGroupNotManaged([AuthenticatedUser()], [UserManagerForGroups]),
     ]
     can_read = _can_any + [
         IfSuperUser(
             [SuperAdminManager],
-            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+            [IfGroupNotManaged([AuthenticatedUser()], [UserManagerForGroups])],
         ),
     ]
     can_search = _can_any + [AuthenticatedUser()]
     can_update = _can_any + [
-        IfSuperUser(
-            [SuperAdminManager],
-            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+        IfGroupActionRoleMatches(
+            [SuperAdminManager, UserManagerForGroups], [SystemProcess()]
         ),
     ]
     can_manage = _can_any + [
-        IfSuperUser(
-            [SuperAdminManager],
-            [IfGroupNotManaged([AuthenticatedUser()], [UserManager])],
+        IfGroupActionRoleMatches(
+            [SuperAdminManager, UserManagerForGroups], [SystemProcess()]
         ),
     ]
     can_delete = _can_any
