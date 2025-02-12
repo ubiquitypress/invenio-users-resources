@@ -66,6 +66,14 @@ def test_create_and_update_group(client, headers, user_moderator, db, search_cle
     assert res.json["description"] == "New group description updated"
     assert res.json["is_managed"] == True
 
+    # Deleting group
+    id_to_delete = res.json["id"]
+    res = client.delete(f"/groups/{id_to_delete}")
+    assert res.status_code == 204
+
+    res = client.get(f"/groups/{id_to_delete}")
+    assert res.status_code == 403
+
 
 # TODO: test conditional requests
 # TODO: test caching headers

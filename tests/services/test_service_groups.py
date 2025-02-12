@@ -152,7 +152,7 @@ def test_admin_group_create(
     assert gr.data["is_managed"] == True
 
 
-def test_create_and_update(
+def test_create_update_and_delete(
     app, db, group_service, user_moderator, user_res, clear_cache, search_clear
 ):
     """Test user create."""
@@ -217,8 +217,21 @@ def test_create_and_update(
         )
     assert exc_info.value.messages == ["Unexpected Issue: 'name'"]
 
+    # Check group cannot be deleted by non user moderator user.
+    with pytest.raises(PermissionDeniedError):
+        group_service.delete(user_res.identity, res["id"])
 
-def test_update_of_super_admin_group(
+    # Delete Group.
+    group_service.delete(
+        user_moderator.identity,
+        res["id"],
+    )
+    # Check group is deleted.
+    with pytest.raises(PermissionDeniedError):
+        group_service.read(user_moderator.identity, res["id"])
+
+
+def test_update_and_attempted_delete_of_super_admin_group(
     app, db, group_service, user_moderator, user_admin, clear_cache, search_clear
 ):
     """Test user can update super admin if has super_admin role, else is denied permission"""
@@ -243,6 +256,9 @@ def test_update_of_super_admin_group(
 
     with pytest.raises(PermissionDeniedError):
         group_service.update(user_moderator.identity, gr.data["id"], updated_data)
+
+    with pytest.raises(PermissionDeniedError):
+        group_service.delete(user_moderator.identity, gr.data["id"])
 
 
 def test_add_user_to_role(
