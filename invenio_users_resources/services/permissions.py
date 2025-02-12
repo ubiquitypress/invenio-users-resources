@@ -114,7 +114,11 @@ class GroupsPermissionPolicy(BasePermissionPolicy):
             [SuperAdminManager, UserManagerForGroups], [SystemProcess()]
         ),
     ]
-    can_delete = _can_any
+    can_delete = _can_any + [
+        IfGroupActionRoleMatches(
+            [SuperAdminManager, UserManagerForGroups], [SystemProcess()]
+        )
+    ]
 
 
 class DomainPermissionPolicy(BasePermissionPolicy):
