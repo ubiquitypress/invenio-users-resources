@@ -12,7 +12,6 @@
 """Permission generators for users and groups."""
 
 from abc import abstractmethod
-from itertools import chain
 
 from flask import current_app
 from invenio_access import Permission, any_user
