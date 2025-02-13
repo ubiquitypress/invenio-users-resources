@@ -172,6 +172,7 @@ class GroupsService(SuperUserMixin, RecordService):
             "hits": {
                 "hits": [
                     {
+                        "email": user.email,
                         "id": user.id,
                         "username": user.username,
                     }
