@@ -46,6 +46,11 @@ class SuperUserMixin:
             return True
         return False
 
+    def check_permission(self, identity, action_name, **kwargs):
+        """Check a permission against the identity."""
+        kwargs["identity"] = identity
+        return self.permission_policy(action_name, **kwargs).allows(identity)
+
 
 class AdministratorGroupAction(SuperUserMixin, AdminAction):
     """Generator for user administrator needs.
