@@ -158,20 +158,3 @@ class GroupsService(SuperUserMixin, RecordService):
                 ]
             }
         }
-
-    def permission_policy(self, action_name, identity, **kwargs):
-        """Factory for a permission policy instance."""
-        kwargs["identity"] = identity
-        return self.config.permission_policy_cls(action_name, **kwargs)
-
-    def check_permission(self, identity, action_name, **kwargs):
-        """Check a permission against the identity."""
-        return self.permission_policy(action_name, identity, **kwargs).allows(identity)
-
-    def require_permission(self, identity, action_name, **kwargs):
-        """Require a specific permission from the permission policy.
-
-        Like `check_permission` but raises an error if not allowed.
-        """
-        if not self.check_permission(identity, action_name, **kwargs):
-            raise PermissionDeniedError(action_name)
