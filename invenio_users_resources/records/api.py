@@ -463,6 +463,10 @@ class GroupAggregate(BaseAggregate):
             return []
         return role.users.all()
 
+    def delete(self, force=True):
+        """Delete the domain."""
+        db.session.delete(self.model.model_obj)
+
 
 class OrgNameDumperExt(SearchDumperExt):
     """Custom fields dumper extension."""

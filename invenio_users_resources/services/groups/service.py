@@ -16,7 +16,11 @@ from invenio_accounts.models import Role
 from invenio_db import db
 from invenio_records_resources.resources.errors import PermissionDeniedError
 from invenio_records_resources.services import RecordService
-from invenio_records_resources.services.uow import RecordCommitOp, unit_of_work
+from invenio_records_resources.services.uow import (
+    RecordCommitOp,
+    RecordDeleteOp,
+    unit_of_work,
+)
 
 from invenio_users_resources.permissions import SuperUserMixin
 
@@ -117,6 +121,23 @@ class GroupsService(SuperUserMixin, RecordService):
         )
 
     @unit_of_work()
+    def delete(self, identity, id_, revision_id=None, uow=None):
+        """Delete a record from database and search indexes."""
+        record = self.record_cls.get_record(id_)
+
+        self.check_revision_id(record, revision_id)
+
+        # Permissions
+        self.require_permission(identity, "delete", record=record)
+
+        # Run components
+        self.run_components("delete", identity, record=record, uow=uow)
+
+        uow.register(RecordDeleteOp(record, self.indexer, index_refresh=True))
+
+        return True
+
+    @unit_of_work()
     def add_user(self, identity, id_, user_id, uow=None):
         """Add group to user."""
         group = GroupAggregate.get_record(id_)
@@ -151,6 +172,7 @@ class GroupsService(SuperUserMixin, RecordService):
             "hits": {
                 "hits": [
                     {
+                        "email": user.email,
                         "id": user.id,
                         "username": user.username,
                     }

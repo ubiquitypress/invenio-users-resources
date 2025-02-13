@@ -18,6 +18,7 @@ from invenio_records_resources.resources import RecordResource
 from invenio_records_resources.resources.records.resource import (
     request_data,
     request_extra_args,
+    request_headers,
     request_search_args,
     request_view_args,
 )
@@ -38,6 +39,7 @@ class GroupsResource(RecordResource):
             route("POST", routes["list"], self.create),
             route("GET", routes["item"], self.read),
             route("PUT", routes["item"], self.update),
+            route("DELETE", routes["item"], self.delete),
             route("GET", routes["item-avatar"], self.avatar),
             route("PUT", routes["manage-user"], self.add_user),
             route("DELETE", routes["manage-user"], self.remove_user),
@@ -106,6 +108,17 @@ class GroupsResource(RecordResource):
             data=resource_requestctx.data or {},
         )
         return item.to_dict(), 200
+
+    @request_headers
+    @request_view_args
+    def delete(self):
+        """Delete an item."""
+        self.service.delete(
+            g.identity,
+            resource_requestctx.view_args["id"],
+            revision_id=resource_requestctx.headers.get("if_match"),
+        )
+        return "", 204
 
     @request_view_args
     def add_user(self):
