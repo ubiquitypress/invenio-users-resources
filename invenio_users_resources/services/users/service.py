@@ -341,12 +341,3 @@ class UsersService(SuperUserMixin, RecordService):
             identity, GroupAggregate.get_record_by_name(group_name)
         ):
             raise PermissionDeniedError(action_name)
-
-    def permission_policy(self, action_name, identity, **kwargs):
-        """Factory for a permission policy instance."""
-        kwargs["identity"] = identity
-        return self.config.permission_policy_cls(action_name, **kwargs)
-
-    def check_permission(self, identity, action_name, **kwargs):
-        """Check a permission against the identity."""
-        return self.permission_policy(action_name, identity, **kwargs).allows(identity)
