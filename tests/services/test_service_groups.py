@@ -294,7 +294,15 @@ def test_add_user_to_role(
 
     gr = group_service.list_users(user_moderator.identity, res["id"])
     assert gr == {
-        "hits": {"hits": [{"id": int(user_res.id), "username": user_res.username}]}
+        "hits": {
+            "hits": [
+                {
+                    "email": user_res.email,
+                    "id": int(user_res.id),
+                    "username": user_res.username,
+                }
+            ]
+        }
     }
 
     # Remove user from group
