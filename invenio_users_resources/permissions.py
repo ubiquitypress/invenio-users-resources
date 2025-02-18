@@ -46,11 +46,6 @@ class SuperUserMixin:
             return True
         return False
 
-    def check_permission(self, identity, action_name, **kwargs):
-        """Check a permission against the identity."""
-        kwargs["identity"] = identity
-        return self.permission_policy(action_name, **kwargs).allows(identity)
-
 
 class AdministratorGroupAction(SuperUserMixin, AdminAction):
     """Generator for user administrator needs.
@@ -59,10 +54,9 @@ class AdministratorGroupAction(SuperUserMixin, AdminAction):
     The query filter of this generator is quite broad (match_all). Therefore, it must be used with care.
     """
 
-    def query_filter(self, identity, **kwargs):
+    def query_filter(self, identity=None, **kwargs):
         """If the user is user moderator then can query all but super user groups."""
-        permission = Permission(self.action)
-        if permission.allows(identity):
+        if identity and Permission(self.action).allows(identity):
             role_names = self._get_superadmin_groups()
             return dsl.Q("match_all") & ~dsl.Q("terms", **{"name": list(role_names)})
         return []
@@ -75,10 +69,9 @@ class AdministratorUserAction(SuperUserMixin, AdminAction):
     The query filter of this generator is quite broad (match_all). Therefore, it must be used with care.
     """
 
-    def query_filter(self, identity, **kwargs):
+    def query_filter(self, identity=None, **kwargs):
         """If the user is user moderator then can query all but super user groups."""
-        permission = Permission(self.action)
-        if permission.allows(identity):
+        if identity and  Permission(self.action).allows(identity):
             user_names = self._get_superadmin_users()
             return dsl.Q("match_all") & ~dsl.Q("terms", **{"id": list(user_names)})
         return []

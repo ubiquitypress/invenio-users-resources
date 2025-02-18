@@ -13,7 +13,7 @@
 
 from abc import abstractmethod
 
-from flask import current_app
+from flask import current_app, g
 from invenio_access import Permission, any_user
 from invenio_records.dictutils import dict_lookup
 from invenio_records_permissions.generators import (
@@ -114,12 +114,11 @@ class IfGroupNotManaged(ConditionalGenerator):
         is_managed = dict_lookup(record, self._field_name)
         return not is_managed
 
-    def query_filter(self, **kwargs):
+    def query_filter(self, identity=None, **kwargs):
         """Filters for queries."""
         q_not_managed = dsl.Q("match", **{self._field_name: False})
-        then_query = self._make_query(self.then_, **kwargs)
-        else_query = self._make_query(self.else_, **kwargs)
-        identity = kwargs.get("identity", None)
+        then_query = self._make_query(self.then_, identity=identity, **kwargs)
+        else_query = self._make_query(self.else_, identity=identity, **kwargs)
         if identity:
             permission = Permission(*self.needs(**kwargs))
             if permission.allows(identity):
@@ -138,17 +137,15 @@ class IfSuperUser(SuperUserMixin, ConditionalGenerator):
 
     def _condition(self, record, **kwargs):
         """Condition to choose generators set."""
-        identity = kwargs.get("identity", None)
-        if identity:
+        if identity:=g.identity:
             result = self._is_user_superadmin(identity)
             return result
         return False
 
-    def query_filter(self, **kwargs):
+    def query_filter(self, identity=None, **kwargs):
         """Filters for queries."""
-        then_query = self._make_query(self.then_, **kwargs)
-        else_query = self._make_query(self.else_, **kwargs)
-        identity = kwargs.get("identity", None)
+        then_query = self._make_query(self.then_, identity=identity, **kwargs)
+        else_query = self._make_query(self.else_, identity=identity, **kwargs)
         if identity and self._is_user_superadmin(identity):
             return then_query
         return else_query
@@ -159,7 +156,7 @@ class IfActionRoleMatches(SuperUserMixin, ConditionalGenerator):
 
     def _condition(self, record, **kwargs):
         """Condition to choose generators set."""
-        return self._should_action_proceed(kwargs.get("identity", None), record)
+        return self._should_action_proceed(g.identity, record)
 
     def _generators(self, record, **kwargs):
         """Get the "then" or "else" generators.
@@ -225,9 +222,8 @@ class IfUserActionRoleMatches(IfActionRoleMatches):
             return (True, 0) if is_user_super else (True, 1)
         return (False, None)
 
-    def query_filter(self, **kwargs):
+    def query_filter(self, identity=None, **kwargs):
         """Filters for queries."""
-        identity = kwargs.get("identity", None)
         if identity:
             then_query = self._make_query(
                 (
