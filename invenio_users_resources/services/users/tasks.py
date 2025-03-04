@@ -105,9 +105,9 @@ def execute_reset_password_email(user_id=None, token=None, reset_link=None):
     """Send email to email address of new user to reset password."""
     account_user = current_datastore.get_user(user_id)
     send_mail(
-        config_value("EMAIL_SUBJECT_PASSWORD_RESET"),
+        str(current_app.config["USERS_RESOURCES_EMAIL_SUBJECT_NEW_USER"]),
         account_user.email,
-        "reset_instructions",
+        "new_user_via_admin",
         user=account_user,
         reset_link=reset_link,
     )
