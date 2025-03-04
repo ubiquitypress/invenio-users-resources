@@ -30,6 +30,7 @@ from sqlalchemy.exc import NoResultFound
 
 from .dumpers import EmailFieldDumperExt
 from .models import DomainAggregateModel, GroupAggregateModel, UserAggregateModel
+import re
 from .systemfields import (
     AccountStatusField,
     AccountVisibilityField,
@@ -225,11 +226,17 @@ class UserAggregate(BaseAggregate):
         try:
             # Check if email and  username already exists by another account.
             errors = {}
+            # Check Username is valid
+            username_pattern = r'^[a-zA-Z][a-zA-Z0-9_-]{2,}$'
+            if not re.match(username_pattern, data["username"]):
+                errors["username"] = ["Username must start with a letter, be at least three characters long and only contain alphanumeric characters, dashes and underscores."]
+            # Check if Email exists already
             existing_email = (
                 db.session.query(User).filter_by(email=data["email"]).first()
             )
             if existing_email:
                 errors["email"] = ["Email already used by another account."]
+            # Check if Username exists already
             existing_username = (
                 db.session.query(User).filter_by(username=data["username"]).first()
             )
