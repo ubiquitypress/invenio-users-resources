@@ -1,0 +1,9 @@
+{{ _('Hello %(username)s!', username=user.username) }}
+
+
+{{ _('Welcome to your new institutional repository account.
+In order to begin submitting your own research outputs for preservation and dissemination, 
+please confirm by clicking here to create a new password') }}
+
+{{ reset_link }}
+
