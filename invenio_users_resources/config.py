@@ -270,5 +270,7 @@ USERS_RESOURCES_GROUPS_SORT_OPTIONS = {
 USERS_RESOURCES_GROUPS_SEARCH_FACETS = {}
 """Invenio groups facets."""
 
-USERS_RESOURCES_EMAIL_SUBJECT_NEW_USER = _("Your Institutional Repository Account Has Been Created")
+USERS_RESOURCES_EMAIL_SUBJECT_NEW_USER = _(
+    "Your Institutional Repository Account Has Been Created"
+)
 """Email subject for password reset email."""
