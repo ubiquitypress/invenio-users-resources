@@ -266,11 +266,13 @@ def test_create(
                 "email": "valid@up.com",
             },
         )
-    assert exc_info.value.messages == [
-        "Unexpected Issue: Username must start with a letter, be at least three "
-        "characters long and only contain alphanumeric characters, dashes and "
-        "underscores.",
-    ]
+    assert exc_info.value.messages == {
+        "username": [
+            "Username must start with a letter, be at least three "
+            "characters long and only contain alphanumeric characters, dashes and "
+            "underscores."
+        ],
+    }
 
     # Invalid values for username with non alpha, dash or underscore
     with pytest.raises(ValidationError) as exc_info:
@@ -281,11 +283,13 @@ def test_create(
                 "email": "valid@up.com",
             },
         )
-    assert exc_info.value.messages == [
-        "Unexpected Issue: Username must start with a letter, be at least three "
-        "characters long and only contain alphanumeric characters, dashes and "
-        "underscores.",
-    ]
+    assert exc_info.value.messages == {
+        "username": [
+            "Username must start with a letter, be at least three "
+            "characters long and only contain alphanumeric characters, dashes and "
+            "underscores."
+        ],
+    }
 
     # Cannot re-add same details for new user
     with pytest.raises(ValidationError) as exc_info:
