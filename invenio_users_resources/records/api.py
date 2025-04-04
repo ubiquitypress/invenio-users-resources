@@ -17,7 +17,7 @@ from collections import namedtuple
 from datetime import datetime
 
 from flask import current_app
-from invenio_accounts.models import Domain, Role, User
+from invenio_accounts.models import Domain, User
 from invenio_accounts.proxies import current_datastore
 from invenio_db import db
 from invenio_records.dumpers import SearchDumper, SearchDumperExt
@@ -473,7 +473,7 @@ class GroupAggregate(BaseAggregate):
         return role.users.all()
 
     def delete(self, force=True):
-        """Delete the domain."""
+        """Delete the group."""
         db.session.delete(self.model.model_obj)
 
 

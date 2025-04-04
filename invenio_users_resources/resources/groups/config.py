@@ -11,10 +11,15 @@
 
 
 import marshmallow as ma
+from flask_resources import HTTPJSONException, create_error_handler
+from invenio_i18n import lazy_gettext as _
 from invenio_records_resources.resources import (
     RecordResourceConfig,
     SearchRequestArgsSchema,
 )
+from invenio_records_resources.resources.errors import ErrorHandlersMixin
+
+from invenio_users_resources.errors import ForeignKeyIntegrityError
 
 
 #
@@ -40,6 +45,20 @@ class GroupsResourceConfig(RecordResourceConfig):
         "item-avatar": "/<id>/avatar.svg",
         "manage-user": "/<id>/users/<user_id>",
         "users": "/<id>/users",
+    }
+
+    error_handlers = {
+        **ErrorHandlersMixin.error_handlers,
+        ForeignKeyIntegrityError: create_error_handler(
+            lambda e: (
+                HTTPJSONException(
+                    code=403,
+                    description=_(
+                        "You're deleing a group that might be used elsewhere."
+                    ),
+                )
+            )
+        ),
     }
 
     request_view_args = {
