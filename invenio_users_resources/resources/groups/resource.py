@@ -11,7 +11,7 @@
 
 """User groups resource."""
 
-
+import sqlalchemy
 from flask import g, send_file
 from flask_resources import resource_requestctx, response_handler, route
 from invenio_records_resources.resources import RecordResource
@@ -23,6 +23,8 @@ from invenio_records_resources.resources.records.resource import (
     request_view_args,
 )
 from invenio_records_resources.resources.records.utils import search_preference
+
+from invenio_users_resources.errors import ForeignKeyIntegrityError
 
 
 #
@@ -112,12 +114,15 @@ class GroupsResource(RecordResource):
     @request_headers
     @request_view_args
     def delete(self):
-        """Delete an item."""
-        self.service.delete(
-            g.identity,
-            resource_requestctx.view_args["id"],
-            revision_id=resource_requestctx.headers.get("if_match"),
-        )
+        """Delete a group."""
+        try:
+            self.service.delete(
+                g.identity,
+                resource_requestctx.view_args["id"],
+                revision_id=resource_requestctx.headers.get("if_match"),
+            )
+        except sqlalchemy.exc.IntegrityError as e:
+            raise ForeignKeyIntegrityError(e)
         return "", 204
 
     @request_view_args
