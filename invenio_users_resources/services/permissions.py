@@ -10,7 +10,7 @@
 
 """Users and user groups permissions."""
 
-from invenio_access import superuser_access
+from invenio_access import authenticated_user, superuser_access
 from invenio_records_permissions import BasePermissionPolicy
 from invenio_records_permissions.generators import (
     AdminAction,
@@ -100,7 +100,12 @@ class GroupsPermissionPolicy(BasePermissionPolicy):
     can_read = _can_any + [
         IfSuperUser(
             [SuperAdminManager],
-            [IfGroupNotManaged([AuthenticatedUser()], [UserManagerForGroups])],
+            [
+                IfGroupNotManaged(
+                    [AuthenticatedUser()],
+                    [AdministratorGroupAction(authenticated_user)],
+                )
+            ],
         ),
     ]
     can_search = _can_any + [AuthenticatedUser()]
