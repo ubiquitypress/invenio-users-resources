@@ -425,9 +425,6 @@ class GroupAggregate(BaseAggregate):
     def create(cls, data, id_=None, validator=None, format_checker=None, **kwargs):
         """Create a new Flask Role and return it as a GroupAggregate."""
         try:
-            #  Admin group view passes in an empty string as id, which will be a valid Role id.
-            if "id" in data and data["id"] == "":
-                data.pop("id")
             # Validate data
             cls.validate_group(data)
             # Create Role
