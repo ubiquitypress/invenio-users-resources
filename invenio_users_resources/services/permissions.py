@@ -75,7 +75,7 @@ class UsersPermissionPolicy(BasePermissionPolicy):
     can_impersonate = [
         SystemProcess(),
         IfUserActionRoleMatches(
-            [SuperAdminManager, PreventSelf(), UserManagerForUsers], [SystemProcess()]
+            [SuperAdminManager, UserManagerForUsers], [SystemProcess()]
         ),
     ]
     can_manage_groups = [
